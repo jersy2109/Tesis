@@ -1,1 +1,3 @@
-"Proyecto de Tesis de Maestr°a en Ciencias de la Computaci¢n: Jersy Espinosa PÇrez \n Red DQN con Flujo Optico" 
+Proyecto de Tesis de Maestr√≠a: DQN con Flujo √ìptico
+
+Jersy Espinosa P√©rez
