@@ -433,7 +433,6 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
     return total_rewards
 
 if __name__ == '__main__':
-    game_list = ['BreakoutNoFrameskip-v4', 'EnduroNoFrameskip-v4', 'RiverraidNoFrameskip-v4', 'SeaquestNoFrameskip-v4', 'SpaceInvadersNoFrameskip-v4', 'MontezumaRevengeNoFrameskip-v4', 'VideoPinballNoFrameskip-v4', 'DoubleDunkNoFrameskip-v4', 'AsterixNoFrameskip-v4', 'QbertNoFrameskip-v4']
-    for game in game_list:
-        training(env_name=game, verbose=False)
+    import sys
+    training(env_name=sys.argv[1], verbose=False)
 
