@@ -14,7 +14,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-%load_ext tensorboard
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
