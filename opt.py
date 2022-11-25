@@ -449,6 +449,6 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
 
 #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
 
-if __name__ == '__main__ ':
+if __name__ == '__main__':
     import sys
     training(env_name=sys.argv[1], verbose=False)
