@@ -1,6 +1,5 @@
-from pathlib import Path
 import gym
-import gym.spaces 
+import gym.spaces
 import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -9,11 +8,13 @@ from tqdm import tqdm
 import datetime
 import random
 import pickle
-  
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
+%load_ext tensorboard
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -26,15 +27,12 @@ def set_seed(seed, env):
 ### Wrappers
 
 class NoopResetEnv(gym.Wrapper):
-    """
-    Realiza un número random de "NOOP" al invocar reset().
-    """
     def __init__(self, env, noop_max=30):
         gym.Wrapper.__init__(self, env)
         self.noop_max = noop_max
         self.noop_action = 0
         assert self.env.unwrapped.get_action_meanings()[0] == 'NOOP'
-        
+
     def reset(self):
         self.env.reset()
         noops = self.env.unwrapped.np_random.integers(1, self.noop_max+1)
@@ -45,43 +43,38 @@ class NoopResetEnv(gym.Wrapper):
             if done:
                 obs = self.env.reset()
         return obs
-        
+
+
 class MaxAndSkipEnv(gym.Wrapper):
-    """
-    Salta un número de frames y regresa el valor promedio de cada pixel.
-    """
     def __init__(self, env, skip=4):
         gym.Wrapper.__init__(self, env)
         self._skip = skip
-        self._obs_buffer = np.zeros((self._skip,) + self.env.observation_space.shape, dtype=np.uint8)
-        
+        self._obs_buffer = np.zeros((2,) + self.env.observation_space.shape, dtype=np.uint8)
+
     def step(self, action):
         total_reward = 0.0
         done = None
         for i in range(self._skip):
             obs, reward, done, _, info = self.env.step(action)
-            if i == self._skip - 2: self._obs_buffer[0] = obs
+            if i == 0: self._obs_buffer[0] = obs
             if i == self._skip - 1: self._obs_buffer[1] = obs            
             total_reward += reward
             if done:
                 break
         max_frame = self._obs_buffer.max(axis=0)
         return max_frame, total_reward, done, info
-    
+
     def reset(self):
         obs = self.env.reset()
         return obs
 
+
 class TimeLimit(gym.Wrapper):
-    """
-    Termina el episodio después de un número de pasos.
-    Evita que los ambientes entren en un loop o sin moverse.
-    """
     def __init__(self, env, max_episode_steps=None):
         super(TimeLimit, self).__init__(env)
         self._max_episode_steps = max_episode_steps
         self._elapsed_steps = 0
-        
+
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         self._elapsed_steps += 1
@@ -94,17 +87,15 @@ class TimeLimit(gym.Wrapper):
         self._elapsed_steps = 0
         obs = self.env.reset()
         return obs
-        
+
+
 class FireResetEnv(gym.Wrapper):
-    """
-    Realiza la acción "FIRE" para iniciar los juegos que lo requieran.
-    """
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.lives = self.env.ale.lives()
         assert self.env.unwrapped.get_action_meanings()[1] == 'FIRE'
         assert len(self.env.unwrapped.get_action_meanings()) >= 3
-    
+
     def reset(self):
         self.env.reset()
         obs, _, done, _ = self.env.step(1)
@@ -114,7 +105,7 @@ class FireResetEnv(gym.Wrapper):
         if done:
             self.env.reset()
         return obs
-    
+
     def step(self, action):
         if self.lives > self.env.ale.lives():
             self.lives = self.env.ale.lives()
@@ -122,120 +113,149 @@ class FireResetEnv(gym.Wrapper):
         obs, reward, done, info = self.env.step(action)
         return obs, reward, done, info
 
+
 class ClipReward(gym.RewardWrapper):
     def __init__(self, env, min_r=-1, max_r=1):
         super().__init__(env)
         self.min_r = min_r
         self.max_r = max_r
-        
+
     def reward(self, reward):
         if reward < 0:
-            return -1
+            return self.min_r
         elif reward > 0:
-            return 1
+            return self.max_r
         else:
             return 0
-        
+
     def step(self, action):
         obs, rew, done, info = self.env.step(action)
         return obs, self.reward(rew), done, info
 
+
 class WarpFrame(gym.ObservationWrapper):
-    """
-    Reescala las imágenes a 84x84 y las pasa de RGB a gris.
-    """
     def __init__(self, env, width=84, height=84):
         super().__init__(env)
         self._width = width
         self._height = height
-        num_colors = 1
-        
-        new_space = gym.spaces.Box(
-            low = 0,
-            high = 255,
-            shape = (self._height, self._width, num_colors),
-            dtype = np.uint8,
-        )
-        original_space = self.observation_space
-        self.observation_space = new_space
-        assert original_space.dtype == np.uint8 and len(original_space.shape) == 3
-        
+
     def observation(self, obs):
-        frame = obs
-        frame = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
-        frame = cv.resize(
-            frame, (self._width, self._height), interpolation=cv.INTER_AREA
+       return  cv.resize(
+            obs, (self._width, self._height), interpolation=cv.INTER_AREA
         )
-        obs = frame
-        return obs
-    
+
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         return self.observation(obs), reward, done, info
-    
+
     def reset(self):
         obs = self.env.reset()
         return self.observation(obs)
 
-class ScaledFloatFrame(gym.ObservationWrapper):
-    """
-    Reescala de 0-255 a 0-1.
-    """
-    def __init__(self, env):
-        gym.ObservationWrapper.__init__(self, env)
-        self.observation_space = gym.spaces.Box(
-            low = 0,
-            high = 255,
-            shape = self.env.observation_space.shape,
-            dtype = np.float32,
-        )
-    
-    def observation(self, observation):
-        return np.array(observation).astype(np.float32) / 255.0
-        
-    def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-        return self.observation(obs), reward, done, info
-    
-    def reset(self):
-        obs = self.env.reset()
-        return self.observation(obs)
 
 class FrameStack(gym.Wrapper):
-    """
-    Apila los últimos k frames.
-    """
-    def __init__(self, env, k=4):
+    def __init__(self, env, k=2):
         gym.Wrapper.__init__(self, env)
         self.k = k
         self.frames = deque([], maxlen=k)
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (4,84,84),
-            dtype = self.env.observation_space.dtype,
+            shape = (2,84,84,3),
+            dtype = env.observation_space.dtype
         )
-    
+        
     def reset(self):
         obs = self.env.reset()
         for _ in range(self.k):
             self.frames.append(obs)
         return self._get_obs()
-    
+
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         self.frames.append(obs)
         return self._get_obs(), reward, done, info
-    
+
     def _get_obs(self):
+        assert len(self.frames) == self.k
         return self.frames
+
+
+class OpticalFlowCV(gym.ObservationWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.observation_space = gym.spaces.Box(
+            low = 0,
+            high = 255,
+            shape = env.observation_space.shape,
+            dtype = np.float32
+        )
+
+    def observation(self, obs):
+        assert np.array(obs).shape == (2, 84, 84, 3)
+        frames = obs
+
+        first_frame = frames[0].astype('uint8')
+        prev_gray = cv.cvtColor(first_frame, cv.COLOR_RGB2GRAY)
+
+        mask = np.zeros_like(first_frame)
+        mask[..., 1] = 255
+
+        frame = frames[1].astype('uint8')
+        gray = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
+
+        flow = cv.calcOpticalFlowFarneback(prev_gray, gray,
+                                        None, 
+                                        0.5, 5, 5, 5, 7, 1.5, 0)
+
+        magnitude, angle = cv.cartToPolar(flow[..., 0], flow[..., 1])
+        mask[..., 0] = angle * 180 / np.pi / 2
+        mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
+
+        flow = cv.cvtColor(mask, cv.COLOR_HSV2RGB)
+        obs[0] = flow
+        obs[1] = frames[1]
+        assert np.array(obs).shape == (2, 84, 84, 3)
+        return obs
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        return self.observation(obs), reward, done, info
+
+    def reset(self):
+        obs = self.env.reset()
+        return obs
+
+    
+class ScaledFloatFrame(gym.ObservationWrapper):
+    def __init__(self, env):
+        gym.ObservationWrapper.__init__(self, env)
+        self.observation_space = gym.spaces.Box(
+            low = 0,
+            high = 255,
+            shape = (6,84,84),
+            dtype = np.float32
+        )
+
+    def observation(self, obs):
+        assert np.array(obs).shape == (2, 84, 84, 3)
+        obs = np.array(obs).astype(np.float32)
+        obs[1] = obs[1] / 255.0
+        obs = obs.reshape(6,84,84)
+        return obs
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        return self.observation(obs), reward, done, info
+
+    def reset(self):
+        obs = self.env.reset()
+        return self.observation(obs)
+
 
 ### Environment
 
-def make_atari(env_id, frames=4, max_episode_steps=None, noop_max=30, skip=4):
-    """
-    Crea el ambiente especificado, pasándolo por los Wrappers especificados.
-    """
+def make_atari(env_id, max_episode_steps=None, noop_max=30, skip=4):
     env = gym.make(env_id, render_mode=None)
     assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max)
@@ -244,18 +264,16 @@ def make_atari(env_id, frames=4, max_episode_steps=None, noop_max=30, skip=4):
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = ClipReward(env)
     env = WarpFrame(env)
+    env = FrameStack(env)
+    env = OpticalFlowCV(env)
     env = ScaledFloatFrame(env)
-    env = FrameStack(env, frames)
     return env
+
 
 ### Network 
 
 class DQN(nn.Module):
-    """
-    Red Profunda de Aprendizaje Q (Deep Q Network).
-    """
     def __init__(self, input_shape, n_actions):
         super(DQN, self).__init__()
         
@@ -267,81 +285,77 @@ class DQN(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU()
         )
-        
+
         conv_out_size = self._get_conv_out(input_shape)
         self.fc = nn.Sequential(
             nn.Linear(conv_out_size, 512),
             nn.ReLU(),
             nn.Linear(512, n_actions)
         )
-        
+
     def _get_conv_out(self, shape):
-        o = self.conv(torch.zeros(1,*shape))
+        o = self.conv(torch.zeros(1, *shape))
         return int(np.prod(o.size()))
-    
+
     def forward(self, x):
         conv_out = self.conv(x).view(x.size()[0], -1)
-        return self.fc(conv_out)      
+        return self.fc(conv_out)
+
 
 ### Experience Replay
 
-Experience = namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
+Experience = namedtuple('Experience', field_names=['state','action','reward','done','next_state'])
 
 class ExperienceReplay:
-    """
-    Almacena experiencias pasadas que han sido observadas por el agente.
-    Las muestras obtenidas sirven para entrenar la red, buscando minimizar el efecto que tiene la correlación entre pasos.
-    """
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
-    
+
     def __len__(self):
         return len(self.buffer)
-    
+
     def append(self, *args):
         self.buffer.append(Experience(*args))
-        
+
     def sample(self, batch_size):
         return random.sample(self.buffer, batch_size)
+
 
 ### Agent
 
 class Agent:
-    """
-     
-    """
     def __init__(self, env, exp_buffer):
         self.env = env
         self.exp_buffer = exp_buffer
         self._reset()
-        
+
     def _reset(self):
         self.state = self.env.reset()
         self.total_reward = 0.0
-        
+
     def play_step(self, net, epsilon=0.0, device='cuda'):
         done_reward = None
-        
+
         if np.random.random() < epsilon:
             action = self.env.action_space.sample()
         else:
             state_a = np.array([self.state], copy=False)
             state_v = torch.tensor(state_a).to(device)
             q_vals_v = net(state_v)
-            _, act_v = torch.max(q_vals_v, dim=1) # Devuelve el índice de la acción
+            _, act_v = torch.max(q_vals_v, dim=1)
             action = int(act_v.item())
-        
+
         new_state, reward, done, _ = self.env.step(action)
         self.total_reward += reward
 
         self.exp_buffer.append(self.state, action, reward, done, new_state)
         self.state = new_state
-        
+
         if done:
             done_reward = self.total_reward
             self._reset()
-        
+
         return done_reward
+
 
 ### Training
 
@@ -351,7 +365,7 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
     """
     Función de entrenamiento.
     """
-    path = "dicts/" + env_name 
+    path = "dictsOpt/" + env_name + "_opt"
     Path(path).mkdir(parents=True, exist_ok=True)
     
     env = make_atari(env_name)
@@ -361,7 +375,7 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
     
     net        = DQN(env.observation_space.shape, env.action_space.n).to(device)
     target_net = DQN(env.observation_space.shape, env.action_space.n).to(device)
-    writer = SummaryWriter(comment='-' + env_name)
+    writer = SummaryWriter(comment='-' + env_name + "_opt")
     
     epsilon = eps_start
     eps_decay = (eps_start - eps_min) / replay_memory_size
@@ -372,7 +386,7 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
     best_mean_reward = None
     start_time = datetime.datetime.now()
     
-    for frame in tqdm(range(1, max_frames+1), desc=env_name):
+    for frame in tqdm(range(1, max_frames+1)):
         epsilon = max(epsilon-eps_decay, eps_min)
         
         reward = agent.play_step(net, epsilon, device=device)
@@ -387,7 +401,7 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
             writer.add_scalar("reward", reward, frame)
             
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
+                torch.save(net.state_dict(), path + "/" + env_name + "_opt_best.dat")
                 best_mean_reward = mean_reward
                 
         if len(buffer) < replay_start_size:
@@ -414,26 +428,27 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
         loss_t.backward()
         optimizer.step()
         
-        if (frame) % sync_target_frames == 0:
+        if (frame + 1) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
 
-        if (frame) % (max_frames / 10) == 0:
+        if (frame + 1) % (max_frames / 50) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
-                    frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
+                    frame + 1, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
+        if (frame+1) % (max_frames/10) == 0:
+            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame+1)/(max_frames/10))) + ".dat")
 
-            torch.save(net.state_dict(), path + "/" + env_name + "_" + str(int((frame)/(max_frames/10))) + ".dat")
-
-    print("Training finished!! {}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
-            frame, len(total_rewards), mean_reward, epsilon, time_passed))
+    print("Training finished")
+    print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
+            frame + 1, len(total_rewards), mean_reward, epsilon, time_passed))
          
     writer.close()
-    pkl_file = "dicts/" + env_name + "/" + env_name + ".pkl"
+    pkl_file = "dicts/" + env_name + "/" + env_name + "_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
     return total_rewards
 
-if __name__ == '__main__':
+
+if __name__ == 'main':
     import sys
     training(env_name=sys.argv[1], verbose=False)
-
