@@ -55,8 +55,8 @@ class MaxAndSkipEnv(gym.Wrapper):
         done = None
         for i in range(self._skip):
             obs, reward, done, _, info = self.env.step(action)
-            if i == 0: self._obs_buffer[0] = obs
-            if i == self._skip - 1: self._obs_buffer[1] = obs            
+            if i == self._skip - 2: self._obs_buffer[0] = obs
+            if i == self._skip - 1: self._obs_buffer[1] = obs           
             total_reward += reward
             if done:
                 break
@@ -137,6 +137,17 @@ class WarpFrame(gym.ObservationWrapper):
         super().__init__(env)
         self._width = width
         self._height = height
+        num_channels = 3
+
+        new_space = gym.spaces.Box(
+            low = 0,
+            high = 255,
+            shape = (self._height, self._width, num_channels),
+            dtype = np.uint8
+        )
+        original_space = self.observation_space
+        self.observation_space = new_space
+        assert original_space.dtype == np.uint8 and len(original_space.shape) == 3
 
     def observation(self, obs):
        return  cv.resize(
@@ -251,6 +262,33 @@ class ScaledFloatFrame(gym.ObservationWrapper):
         obs = self.env.reset()
         return self.observation(obs)
 
+class EpisodicLifeEnv(gym.Wrapper):
+    """
+    Termina el episodio cuando se pierde una vida, pero solo reinicia si
+    se pierden todas.
+    """
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+        self.lives = 0
+        self.is_done = True
+        
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        self.is_done = done
+        lives = self.env.unwrapped.ale.lives()
+        if lives < self.lives and lives > 0:
+            done = True
+        self.lives = lives
+        return obs, reward, done, info
+    
+    def reset(self):
+        if self.is_done:
+            obs = self.env.reset()
+        else:
+            obs, _, _, _ = self.env.step(0)
+        self.lives = self.env.unwrapped.ale.lives()
+        return obs
+    
 
 ### Environment
 
@@ -267,6 +305,7 @@ def make_atari(env_id, max_episode_steps=None, noop_max=30, skip=4):
     env = FrameStack(env)
     env = OpticalFlowCV(env)
     env = ScaledFloatFrame(env)
+    env = EpisodicLifeEnv(env)
     return env
 
 

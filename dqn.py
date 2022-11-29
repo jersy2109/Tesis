@@ -130,9 +130,9 @@ class ClipReward(gym.RewardWrapper):
         
     def reward(self, reward):
         if reward < 0:
-            return -1
+            return self.min_r
         elif reward > 0:
-            return 1
+            return self.max_r
         else:
             return 0
         
@@ -230,6 +230,34 @@ class FrameStack(gym.Wrapper):
     def _get_obs(self):
         return self.frames
 
+class EpisodicLifeEnv(gym.Wrapper):
+    """
+    Termina el episodio cuando se pierde una vida, pero solo reinicia si
+    se pierden todas.
+    """
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+        self.lives = 0
+        self.is_done = True
+        
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        self.is_done = done
+        lives = self.env.unwrapped.ale.lives()
+        if lives < self.lives and lives > 0:
+            done = True
+        self.lives = lives
+        return obs, reward, done, info
+    
+    def reset(self):
+        if self.is_done:
+            obs = self.env.reset()
+        else:
+            obs, _, _, _ = self.env.step(0)
+        self.lives = self.env.unwrapped.ale.lives()
+        return obs
+    
+
 ### Environment
 
 def make_atari(env_id, frames=4, max_episode_steps=None, noop_max=30, skip=4):
@@ -248,6 +276,7 @@ def make_atari(env_id, frames=4, max_episode_steps=None, noop_max=30, skip=4):
     env = WarpFrame(env)
     env = ScaledFloatFrame(env)
     env = FrameStack(env, frames)
+    env = EpisodicLifeEnv(env)
     return env
 
 ### Network 
