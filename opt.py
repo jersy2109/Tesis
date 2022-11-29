@@ -358,7 +358,7 @@ class ExperienceReplay:
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
         states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
         return np.array(states), np.array(actions), np.array(rewards, dtype=np.float32), \
-               np.array(dones, dtype=np.bool8), np.array(next_states)
+               np.array(dones, dtype=np.uint8), np.array(next_states)
 
 
 ### Agent
@@ -455,7 +455,7 @@ def training(env_name, replay_memory_size=50_000, max_frames=50_000_000, gamma=0
         next_states_v = torch.tensor(next_states).to(device)
         actions_v = torch.tensor(actions).type(torch.int64).to(device)
         rewards_v = torch.tensor(rewards).to(device)
-        done_mask = torch.ByteTensor(dones).to(device)
+        done_mask = torch.BoolTensor(dones).to(device)
 
         state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
         next_state_values = target_net(next_states_v).max(1)[0]
