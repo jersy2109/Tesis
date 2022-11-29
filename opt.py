@@ -43,10 +43,6 @@ class NoopResetEnv(gym.Wrapper):
                 obs = self.env.reset()
         return obs
 
-    def step(self, action):
-        obs, reward, done, _ , info = self.env.step(action)
-        return obs, reward, done, info
-
 
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env, skip=4):
@@ -498,4 +494,4 @@ def training(env_name, replay_memory_size=50_000, max_frames=50_000_000, gamma=0
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1], verbose=False, replay_memory_size=500_000)
+    training(env_name=sys.argv[1], verbose=False, replay_memory_size=sys.argv[2])
