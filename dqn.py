@@ -383,7 +383,7 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
     path = "dicts/" + env_name 
     Path(path).mkdir(parents=True, exist_ok=True)
     
-    env = make_atari(env_name)
+    env = make_atari(env_name, max_episode_steps=5_000)
     buffer = ExperienceReplay(replay_memory_size)
     agent = Agent(env, buffer)
     set_seed(seed=seed, env=env)
