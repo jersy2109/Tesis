@@ -43,12 +43,16 @@ class NoopResetEnv(gym.Wrapper):
                 obs = self.env.reset()
         return obs
 
+    def step(self, action):
+        obs, reward, done, _ , info = self.env.step(action)
+        return obs, reward, done, info
+
 
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env, skip=4):
         gym.Wrapper.__init__(self, env)
         self._skip = skip
-        self._obs_buffer = np.zeros((2,) + self.env.observation_space.shape, dtype=np.uint8)
+        self._obs_buffer = np.zeros((self._skip,) + self.env.observation_space.shape, dtype=np.uint8)
 
     def step(self, action):
         total_reward = 0.0
@@ -205,13 +209,13 @@ class OpticalFlowCV(gym.ObservationWrapper):
         assert np.array(obs).shape == (2, 84, 84, 3)
         frames = obs
 
-        first_frame = frames[0].astype('uint8')
+        first_frame = np.array(frames)[0].astype('uint8')
         prev_gray = cv.cvtColor(first_frame, cv.COLOR_RGB2GRAY)
 
         mask = np.zeros_like(first_frame)
         mask[..., 1] = 255
 
-        frame = frames[1].astype('uint8')
+        frame = np.array(frames)[1].astype('uint8')
         gray = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
 
         flow = cv.calcOpticalFlowFarneback(prev_gray, gray,
@@ -219,12 +223,13 @@ class OpticalFlowCV(gym.ObservationWrapper):
                                         0.5, 5, 5, 5, 7, 1.5, 0)
 
         magnitude, angle = cv.cartToPolar(flow[..., 0], flow[..., 1])
+
         mask[..., 0] = angle * 180 / np.pi / 2
         mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
 
         flow = cv.cvtColor(mask, cv.COLOR_HSV2RGB)
         obs[0] = flow
-        obs[1] = frames[1]
+        obs[1] = np.array(frames)[1]
         assert np.array(obs).shape == (2, 84, 84, 3)
         return obs
 
@@ -351,8 +356,8 @@ class ExperienceReplay:
     def __len__(self):
         return len(self.buffer)
 
-    def append(self, *args):
-        self.buffer.append(Experience(*args))
+    def append(self, experience):
+        self.buffer.append(experience)
 
     def sample(self, batch_size):
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
@@ -388,7 +393,8 @@ class Agent:
         new_state, reward, done, _ = self.env.step(action)
         self.total_reward += reward
 
-        self.exp_buffer.append(self.state, action, reward, done, new_state)
+        exp = Experience(self.state, action, reward, done, new_state)
+        self.exp_buffer.append(exp)
         self.state = new_state
 
         if done:
