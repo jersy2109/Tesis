@@ -358,7 +358,7 @@ class ExperienceReplay:
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
         states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
         return np.array(states), np.array(actions), np.array(rewards, dtype=np.float32), \
-               np.array(dones, dtype=np.uint8), np.array(next_states)
+               np.array(dones, dtype=np.bool8), np.array(next_states)
 
 
 ### Agent
@@ -400,7 +400,7 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=150_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
+def training(env_name, replay_memory_size=50_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
             learning_rate=0.00025, sync_target_frames=10_000, replay_start_size=50_000, eps_start=1, \
             eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
