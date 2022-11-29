@@ -397,7 +397,7 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=250_000, max_frames=50_000_000, gamma=0.99, batch_size=64,  \
+def training(env_name, replay_memory_size=250_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
             learning_rate=0.00025, sync_target_frames=10_000, replay_start_size=50_000, eps_start=1, \
             eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
