@@ -398,8 +398,8 @@ class Agent:
 ### Training
 
 def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamma=0.99, batch_size=32,  \
-             learning_rate=0.00025, momentum=0.95, min_gradient=0.1, sync_target_frames=10_000, \
-             replay_start_size=50_000, eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
+            learning_rate=0.00025, sync_target_frames=10_000, replay_start_size=50_000, eps_start=1, \
+            eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
     Función de entrenamiento.
     """
@@ -418,7 +418,7 @@ def training(env_name, replay_memory_size=1_000_000, max_frames=50_000_000, gamm
     epsilon = eps_start
     eps_decay = (eps_start - eps_min) / replay_memory_size
     
-    optimizer = optim.RMSprop(net.parameters(), lr=learning_rate, momentum=momentum, eps=min_gradient)
+    optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     
     best_mean_reward = None
