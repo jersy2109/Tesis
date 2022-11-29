@@ -397,7 +397,7 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=250_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
+def training(env_name, replay_memory_size=150_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
             learning_rate=0.00025, sync_target_frames=10_000, replay_start_size=50_000, eps_start=1, \
             eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
@@ -445,15 +445,15 @@ def training(env_name, replay_memory_size=250_000, max_frames=50_000_000, gamma=
         if len(buffer) < replay_start_size:
             continue
             
-        sardn = buffer.sample(batch_size)
-        batch = Experience(*zip(*sardn))
-        
-        states_v = torch.tensor(np.array(batch.state)).to(device)
-        next_states_v = torch.tensor(np.array(batch.next_state)).to(device)
-        actions_v = torch.tensor(batch.action).to(device)
-        rewards_v = torch.tensor(batch.reward).to(device)
-        done_mask = torch.BoolTensor(batch.done).to(device)
-        
+        batch = buffer.sample(batch_size)
+        states, actions, rewards, dones, next_states = batch
+
+        states_v = torch.tensor(states).to(device)
+        next_states_v = torch.tensor(next_states).to(device)
+        actions_v = torch.tensor(actions).type(torch.int64).to(device)
+        rewards_v = torch.tensor(rewards).to(device)
+        done_mask = torch.ByteTensor(dones).to(device)
+
         state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
         next_state_values = target_net(next_states_v).max(1)[0]
         next_state_values[done_mask] = 0.0
