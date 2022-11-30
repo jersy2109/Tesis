@@ -475,8 +475,8 @@ def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame + 1, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-        if (frame+1) % (max_frames/10) == 0:
-            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame+1)/(max_frames/10))) + ".dat")
+        if (frame+1) % (max_frames/5_000_000) == 0:
+            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame+1)/(5_000_000))) + ".dat")
 
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
@@ -491,4 +491,4 @@ def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=False, replay_memory_size=int(sys.argv[2]))
+    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=False, replay_memory_size=int(sys.argv[2]), max_frames=int(sys.arg[3]))
