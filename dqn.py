@@ -260,7 +260,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Environment
 
-def make_atari(env_id, frames=4, max_episode_steps=None, noop_max=30, skip=4):
+def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4):
     """
     Crea el ambiente especificado, pasándolo por los Wrappers especificados.
     """

@@ -293,7 +293,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Environment
 
-def make_atari(env_id, max_episode_steps=None, noop_max=30, skip=4):
+def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4):
     env = gym.make(env_id, render_mode=None)
     assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max)
@@ -302,6 +302,7 @@ def make_atari(env_id, max_episode_steps=None, noop_max=30, skip=4):
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
+    env = ClipReward(env)
     env = WarpFrame(env)
     env = FrameStack(env)
     env = OpticalFlowCV(env)
@@ -352,14 +353,11 @@ class ExperienceReplay:
     def __len__(self):
         return len(self.buffer)
 
-    def append(self, experience):
-        self.buffer.append(experience)
+    def append(self, *args):
+        self.buffer.append(Experience(*args))
 
     def sample(self, batch_size):
-        indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
-        return np.array(states), np.array(actions), np.array(rewards, dtype=np.float32), \
-               np.array(dones, dtype=np.uint8), np.array(next_states)
+        return random.sample(self.buffer, batch_size)
 
 
 ### Agent
@@ -402,9 +400,9 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=50_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
-            learning_rate=0.00025, sync_target_frames=10_000, replay_start_size=50_000, eps_start=1, \
-            eps_min=0.1, seed=2109, device='cuda', verbose=True):
+def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
+            learning_rate=0.00025, momentum=0.95, min_gradient=0.1,  sync_target_frames=10_000, \
+            replay_start_size=50_000, eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
     Función de entrenamiento.
     """
@@ -423,7 +421,7 @@ def training(env_name, replay_memory_size=50_000, max_frames=50_000_000, gamma=0
     epsilon = eps_start
     eps_decay = (eps_start - eps_min) / replay_memory_size
     
-    optimizer = optim.Adam(net.parameters(), lr=learning_rate)
+    optimizer = optim.RMSprop(net.parameters(), lr=learning_rate, momentum=momentum, eps=min_gradient)
     total_rewards = []
     
     best_mean_reward = None
@@ -450,14 +448,14 @@ def training(env_name, replay_memory_size=50_000, max_frames=50_000_000, gamma=0
         if len(buffer) < replay_start_size:
             continue
             
-        batch = buffer.sample(batch_size)
-        states, actions, rewards, dones, next_states = batch
-
-        states_v = torch.tensor(states).to(device)
-        next_states_v = torch.tensor(next_states).to(device)
-        actions_v = torch.tensor(actions).type(torch.int64).to(device)
-        rewards_v = torch.tensor(rewards).to(device)
-        done_mask = torch.BoolTensor(dones).to(device)
+        sardn = buffer.sample(batch_size)
+        batch = Experience(*zip(*sardn))
+        
+        states_v = torch.tensor(np.array(batch.state)).to(device)
+        next_states_v = torch.tensor(np.array(batch.next_state)).to(device)
+        actions_v = torch.tensor(batch.action).to(device)
+        rewards_v = torch.tensor(batch.reward).to(device)
+        done_mask = torch.BoolTensor(batch.done).to(device)
 
         state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
         next_state_values = target_net(next_states_v).max(1)[0]
