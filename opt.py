@@ -386,9 +386,8 @@ class Agent:
 
         new_state, reward, done, _ = self.env.step(action)
         self.total_reward += reward
-
-        exp = Experience(self.state, action, reward, done, new_state)
-        self.exp_buffer.append(exp)
+        
+        self.exp_buffer.append(self.state, action, reward, done, new_state)
         self.state = new_state
 
         if done:
@@ -492,4 +491,4 @@ def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1], verbose=False, replay_memory_size=int(sys.argv[2]))
+    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=False, replay_memory_size=int(sys.argv[2]))
