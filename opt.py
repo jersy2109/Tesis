@@ -417,10 +417,12 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
-    
+    val_rewards = []
+
     best_mean_reward = None
     start_time = datetime.datetime.now()
-    
+    done_counter = 0
+
     for frame in tqdm(range(1, max_frames+1)):
         epsilon = max(epsilon-eps_decay, eps_min)
         
@@ -438,6 +440,8 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             if best_mean_reward is None or best_mean_reward < mean_reward:
                 torch.save(net.state_dict(), path + "/" + env_name + "_opt_best.dat")
                 best_mean_reward = mean_reward
+           
+            done_counter += 1
                 
         if len(buffer) < replay_start_size:
             continue
@@ -467,12 +471,24 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
         if (frame + 1) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
 
-        if (frame + 1) % (max_frames / 50) == 0:
+        if (frame) % (max_frames / 10) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame + 1, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-        if (frame+1) % (max_frames/5_000_000) == 0:
+
             torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame+1)/(5_000_000))) + ".dat")
+
+        if done_counter == 100:
+            test_agent = Agent(net, buffer)
+            test_dones = 0
+            tot_val_rew = 0
+            while test_dones < 20:
+                rw = test_agent.play_step(net, 0.05, device)
+                if rw is not None:
+                    tot_val_rew += rw
+                    test_dones = 0
+            val_rewards.append(tot_val_rew/20)
+            done_counter = 0
 
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
@@ -482,6 +498,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     pkl_file = "dicts/" + env_name + "/" + env_name + "_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
+
     return total_rewards
 
 
