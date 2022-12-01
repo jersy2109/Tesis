@@ -406,7 +406,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     path = "dictsOpt/" + env_name + "_opt"
     Path(path).mkdir(parents=True, exist_ok=True)
     
-    env = make_atari(env_name, max_episode_steps=1_000)
+    env = make_atari(env_name, max_episode_steps=5_000)
     buffer = ExperienceReplay(replay_memory_size)
     agent = Agent(env, buffer)
     set_seed(seed=seed, env=env)
@@ -443,6 +443,18 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
                 torch.save(net.state_dict(), path + "/" + env_name + "_opt_best.dat")
                 best_mean_reward = mean_reward
            
+            if len(total_rewards) % 50 == 0:
+                test_agent = Agent(env, buffer, True)
+                test_dones = 0
+                tot_val_rew = 0
+                while test_dones < 20:
+                    rw = test_agent.play_step(net, 0.05, device)
+                    if rw is not None:
+                        tot_val_rew += rw
+                        test_dones += 1
+#                        print("Test reward {}".format(rw))
+                val_rewards.append(tot_val_rew/20)
+#                print("Average reward in 20 games: {:.2f}".format(tot_val_rew/20))
                 
         if len(buffer) < replay_start_size:
             continue
@@ -479,17 +491,6 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
 
             torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame+1)/(5_000_000))) + ".dat")
 
-        if len(total_rewards) % 50 == 0:
-            test_agent = Agent(net, buffer, True)
-            test_dones = 0
-            tot_val_rew = 0
-            while test_dones < 20:
-                rw = test_agent.play_step(net, 0.05, device)
-                if rw is not None:
-                    tot_val_rew += rw
-                    test_dones = 0
-            val_rewards.append(tot_val_rew/20)
-
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame + 1, len(total_rewards), mean_reward, epsilon, time_passed))
@@ -506,4 +507,4 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4')
+    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=False)
