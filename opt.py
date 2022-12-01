@@ -64,9 +64,8 @@ class MaxAndSkipEnv(gym.Wrapper):
         return max_frame, total_reward, done, info
 
     def reset(self):
-        obs = self.env.reset()
-        return obs
-
+        return self.env.reset()
+        
 
 class TimeLimit(gym.Wrapper):
     def __init__(self, env, max_episode_steps=None):
@@ -84,9 +83,8 @@ class TimeLimit(gym.Wrapper):
 
     def reset(self):
         self._elapsed_steps = 0
-        obs = self.env.reset()
-        return obs
-
+        return self.env.reset()
+        
 
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env):
@@ -109,9 +107,8 @@ class FireResetEnv(gym.Wrapper):
         if self.lives > self.env.ale.lives():
             self.lives = self.env.ale.lives()
             action = 1
-        obs, reward, done, info = self.env.step(action)
-        return obs, reward, done, info
-
+        return self.env.step(action)
+        
 
 class ClipReward(gym.RewardWrapper):
     def __init__(self, env, min_r=-1, max_r=1):
@@ -120,9 +117,9 @@ class ClipReward(gym.RewardWrapper):
         self.max_r = max_r
 
     def reward(self, reward):
-        if reward < 0:
+        if reward < self.min_r:
             return self.min_r
-        elif reward > 0:
+        elif reward > self.max_r:
             return self.max_r
         else:
             return 0
@@ -234,9 +231,7 @@ class OpticalFlowCV(gym.ObservationWrapper):
         return self.observation(obs), reward, done, info
 
     def reset(self):
-        obs = self.env.reset()
-        return obs
-
+        return self.env.reset()
     
 class ScaledFloatFrame(gym.ObservationWrapper):
     def __init__(self, env):
@@ -399,9 +394,9 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
-            learning_rate=0.00025, momentum=0.95, min_gradient=0.1,  sync_target_frames=10_000, \
-            replay_start_size=50_000, eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
+def training(env_name, replay_memory_size=100_000, max_frames=50_000_000, gamma=0.99, batch_size=32,  \
+            learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
+            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
     Función de entrenamiento.
     """
@@ -420,7 +415,7 @@ def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma
     epsilon = eps_start
     eps_decay = (eps_start - eps_min) / replay_memory_size
     
-    optimizer = optim.RMSprop(net.parameters(), lr=learning_rate, momentum=momentum, eps=min_gradient)
+    optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     
     best_mean_reward = None
@@ -446,27 +441,28 @@ def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma
                 
         if len(buffer) < replay_start_size:
             continue
-            
-        sardn = buffer.sample(batch_size)
-        batch = Experience(*zip(*sardn))
-        
-        states_v = torch.tensor(np.array(batch.state)).to(device)
-        next_states_v = torch.tensor(np.array(batch.next_state)).to(device)
-        actions_v = torch.tensor(batch.action).to(device)
-        rewards_v = torch.tensor(batch.reward).to(device)
-        done_mask = torch.BoolTensor(batch.done).to(device)
 
-        state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
-        next_state_values = target_net(next_states_v).max(1)[0]
-        next_state_values[done_mask] = 0.0
-        next_state_values = next_state_values.detach()
-        expected_state_action_values = next_state_values*gamma + rewards_v
-        
-        loss_t = nn.MSELoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
-        
-        optimizer.zero_grad()
-        loss_t.backward()
-        optimizer.step()
+        if (frame+1) % net_update == 0:
+            sardn = buffer.sample(batch_size)
+            batch = Experience(*zip(*sardn))
+            
+            states_v = torch.tensor(np.array(batch.state)).to(device)
+            next_states_v = torch.tensor(np.array(batch.next_state)).to(device)
+            actions_v = torch.tensor(batch.action).to(device)
+            rewards_v = torch.tensor(batch.reward).to(device)
+            done_mask = torch.BoolTensor(batch.done).to(device)
+
+            state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
+            next_state_values = target_net(next_states_v).max(1)[0]
+            next_state_values[done_mask] = 0.0
+            next_state_values = next_state_values.detach()
+            expected_state_action_values = next_state_values*gamma + rewards_v
+            
+            loss_t = nn.HuberLoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
+            
+            optimizer.zero_grad()
+            loss_t.backward()
+            optimizer.step()
         
         if (frame + 1) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
@@ -491,4 +487,4 @@ def training(env_name, replay_memory_size=1_00_000, max_frames=50_000_000, gamma
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=False, replay_memory_size=int(sys.argv[2]), max_frames=int(sys.argv[3]))
+    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=sys.argv[2], replay_memory_size=int(sys.argv[3]), max_frames=int(sys.argv[4]))
