@@ -339,9 +339,10 @@ class Agent:
     """
      
     """
-    def __init__(self, env, exp_buffer):
+    def __init__(self, env, exp_buffer, val=False):
         self.env = env
         self.exp_buffer = exp_buffer
+        self.val = val
         self._reset()
         
     def _reset(self):
@@ -362,8 +363,10 @@ class Agent:
         
         new_state, reward, done, _ = self.env.step(action)
         self.total_reward += reward
-
-        self.exp_buffer.append(self.state, action, reward, done, new_state)
+        
+        if self.val == False:
+            self.exp_buffer.append(self.state, action, reward, done, new_state)
+        
         self.state = new_state
         
         if done:
@@ -459,7 +462,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             torch.save(net.state_dict(), path + "/" + env_name + "_" + str(int((frame)/(max_frames/10))) + ".dat")
         
         if done_counter == 50:
-            test_agent = Agent(net, buffer)
+            test_agent = Agent(net, buffer, True)
             test_dones = 0
             tot_val_rew = 0
             while test_dones < 20:
@@ -474,9 +477,12 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             frame, len(total_rewards), mean_reward, epsilon, time_passed))
          
     writer.close()
-    pkl_file = "dicts/" + env_name + "/" + env_name + ".pkl"
+    pkl_file = "dicts/" + env_name + "/" + env_name + "_total.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
+    pkl_file = "dicts/" + env_name + "/" + env_name + "_val.pkl"
+    with open(pkl_file, 'wb+') as f:
+        pickle.dump(val_rewards, f)
     return total_rewards, val_rewards
 
 if __name__ == '__main__':
