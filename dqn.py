@@ -404,7 +404,6 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
   
     best_mean_reward = None
     start_time = datetime.datetime.now()
-    done_counter = 0
 
     for frame in tqdm(range(1, max_frames+1), desc=env_name):
         epsilon = max(epsilon-eps_decay, eps_min)
@@ -424,8 +423,6 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
                 torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
                 best_mean_reward = mean_reward
  
-            done_counter += 1
-
         if len(buffer) < replay_start_size:
             continue
 
@@ -461,7 +458,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
 
             torch.save(net.state_dict(), path + "/" + env_name + "_" + str(int((frame)/(max_frames/10))) + ".dat")
         
-        if done_counter == 50:
+        if len(total_rewards) % 50 == 0:
             test_agent = Agent(net, buffer, True)
             test_dones = 0
             tot_val_rew = 0
@@ -471,7 +468,6 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
                     tot_val_rew += rw
                     test_dones = 0
             val_rewards.append(tot_val_rew/20)
-            done_counter = 0
 
     print("Training finished!! {}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, time_passed))
