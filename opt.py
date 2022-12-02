@@ -288,7 +288,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Environment
 
-def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4):
+def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=False):
     env = gym.make(env_id, render_mode=None)
     assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max)
@@ -297,7 +297,8 @@ def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4):
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = ClipReward(env)
+    if sample == False:
+        env = ClipReward(env)
     env = WarpFrame(env)
     env = FrameStack(env)
     env = OpticalFlowCV(env)

@@ -260,7 +260,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Environment
 
-def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4):
+def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4, sample=False):
     """
     Crea el ambiente especificado, pasándolo por los Wrappers especificados.
     """
@@ -272,7 +272,8 @@ def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4):
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = ClipReward(env)
+    if sample == False:
+        env = ClipReward(env)
     env = WarpFrame(env)
     env = ScaledFloatFrame(env)
     env = FrameStack(env, frames)
