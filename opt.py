@@ -117,9 +117,9 @@ class ClipReward(gym.RewardWrapper):
         self.max_r = max_r
 
     def reward(self, reward):
-        if reward < self.min_r:
+        if reward < 0:
             return self.min_r
-        elif reward > self.max_r:
+        elif reward > 0:
             return self.max_r
         else:
             return 0
