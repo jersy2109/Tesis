@@ -401,14 +401,13 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     val_rewards = []
-  
-    best_mean_reward = None
+
+    best_val_reward = None
     start_time = datetime.datetime.now()
 
-    for frame in tqdm(range(1, max_frames+1), desc=env_name):
-        epsilon = max(epsilon-eps_decay, eps_min)
-        
+    for frame in tqdm(range(1, max_frames+1), desc=env_name):        
         reward = agent.play_step(net, epsilon, device)
+        
         if reward is not None:
             total_rewards.append(reward)
             mean_reward = np.mean(total_rewards[-100:])
@@ -419,12 +418,9 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             writer.add_scalar("reward_100", mean_reward, frame)
             writer.add_scalar("reward", reward, frame)
             
-            if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
-                best_mean_reward = mean_reward
-            
             if len(total_rewards) % 50 == 0:
-                test_agent = Agent(env, buffer, True)
+                test_env = make_atari(env_name, sample=True)
+                test_agent = Agent(test_env, buffer, True)
                 test_dones = 0
                 tot_val_rew = 0
                 while test_dones < 20:
@@ -433,11 +429,19 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
                         tot_val_rew += rw
                         test_dones += 1
 #                        print("Test reward {}".format(rw))
-                val_rewards.append(tot_val_rew/20)
-#                print("Average reward in 20 games: {:.2f}".format(tot_val_rew/20))
+                test_env.close()
+                mean_val_rw = tot_val_rew / 20
+                if best_val_reward is None or best_val_reward < mean_val_rw:
+                    torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
+                    best_val_reward = mean_val_rw
+                
+                val_rewards.append(mean_val_rw)
+#                print("Average reward in 20 games: {:.2f}".format(mean_val_rw))
 
         if len(buffer) < replay_start_size:
             continue
+
+        epsilon = max(epsilon-eps_decay, eps_min)
 
         if (frame+1) % net_update == 0:
             sardn = buffer.sample(batch_size)
