@@ -401,11 +401,10 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
-    val_rewards = []
     loss_history = []
     loss_t = None
 
-    best_val_reward = None
+    best_mean_reward = None
     start_time = datetime.datetime.now()
 
     for frame in tqdm(range(1, max_frames+1), desc=env_name):        
@@ -421,25 +420,9 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             writer.add_scalar("reward_100", mean_reward, frame)
             writer.add_scalar("reward", reward, frame)
             
-            if len(total_rewards) % 1000 == 0:
-                test_env = make_atari(env_name, sample=True, max_episode_steps=5_000)
-                test_agent = Agent(test_env, buffer, True)
-                test_dones = 0
-                tot_val_rew = 0
-                while test_dones < 50:
-                    rw = test_agent.play_step(net, 0.05, device)
-                    if rw is not None:
-                        tot_val_rew += rw
-                        test_dones += 1
-#                        print("Test reward {}".format(rw))
-                mean_val_rw = tot_val_rew / 50
-                test_env.close()
-                if best_val_reward is None or best_val_reward < mean_val_rw:
-                    torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
-                    best_val_reward = mean_val_rw
-                
-                val_rewards.append(mean_val_rw)
-#                print("Average reward in 50 games: {:.2f}".format(mean_val_rw))
+            if best_mean_reward is None or best_mean_reward < mean_reward:
+                torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
+                best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
             continue
@@ -491,10 +474,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     pkl_file = "dicts/" + env_name + "/" + env_name + "_total.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_val.pkl"
-    with open(pkl_file, 'wb+') as f:
-        pickle.dump(val_rewards, f)
-    return total_rewards, val_rewards, loss_history
+    return total_rewards, loss_history
 
 if __name__ == '__main__':
     import sys
