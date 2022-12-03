@@ -460,7 +460,6 @@ def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0
             expected_state_action_values = next_state_values*gamma + rewards_v
             
             loss_t = nn.HuberLoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
-            writer.add_scalar("loss", loss_t.item(), frame)
 
             optimizer.zero_grad()
             loss_t.backward()
