@@ -194,7 +194,7 @@ class OpticalFlowCV(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (4,84,84),
+            shape = env.observation_space.shape,
             dtype = np.float32
         )
 
@@ -221,8 +221,9 @@ class OpticalFlowCV(gym.ObservationWrapper):
         mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
 
         flow = cv.cvtColor(mask, cv.COLOR_HSV2RGB)
-        obs = np.concatenate((flow.reshape(3,84,84),gray.reshape(1,84,84)), axis=1)
-        assert np.array(obs).shape == (4,84,84)
+        obs[0] = flow
+        obs[1] = np.array(frames)[1]
+        assert np.array(obs).shape == (2, 84, 84, 3)
         return obs
 
     def step(self, action):
@@ -238,13 +239,15 @@ class ScaledFloatFrame(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (4,84,84),
+            shape = (6,84,84),
             dtype = np.float32
         )
 
     def observation(self, obs):
-        assert np.array(obs).shape == (4,84,84)
-        obs = np.array(obs).astype(np.float32) / 255.0
+        assert np.array(obs).shape == (2, 84, 84, 3)
+        obs = np.array(obs).astype(np.float32)
+        obs[1] = obs[1] / 255.0
+        obs = obs.reshape(6,84,84)
         return obs
 
     def step(self, action):
