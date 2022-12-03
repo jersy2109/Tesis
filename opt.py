@@ -497,13 +497,13 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
         if (frame) % (max_frames / 10) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
-                    frame + 1, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
+                    frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
 
-            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame+1)/(5_000_000))) + ".dat")
+            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame)/(5_000_000))) + ".dat")
 
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
-            frame + 1, len(total_rewards), mean_reward, epsilon, time_passed))
+            frame, len(total_rewards), mean_reward, epsilon, time_passed))
          
     writer.close()
     pkl_file = "dictsOpt/" + env_name + "/" + env_name + "_loss_opt.pkl"

@@ -432,8 +432,8 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
                         tot_val_rew += rw
                         test_dones += 1
 #                        print("Test reward {}".format(rw))
-                test_env.close()
                 mean_val_rw = tot_val_rew / 50
+                test_env.close()
                 if best_val_reward is None or best_val_reward < mean_val_rw:
                     torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
                     best_val_reward = mean_val_rw
@@ -480,7 +480,8 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
 
             torch.save(net.state_dict(), path + "/" + env_name + "_" + str(int((frame)/(max_frames/10))) + ".dat")
 
-    print("Training finished!! {}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
+    print("Training finished")
+    print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, time_passed))
          
     writer.close()
