@@ -422,7 +422,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             writer.add_scalar("reward", reward, frame)
             
             if len(total_rewards) % 1000 == 0:
-                test_env = make_atari(env_name, sample=True)
+                test_env = make_atari(env_name, sample=True, max_episode_steps=5_000)
                 test_agent = Agent(test_env, buffer, True)
                 test_dones = 0
                 tot_val_rew = 0
