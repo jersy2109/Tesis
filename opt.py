@@ -422,6 +422,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     val_rewards = []
+    loss_history = []
 
     best_val_reward = None
     start_time = datetime.datetime.now()
@@ -481,13 +482,14 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             expected_state_action_values = next_state_values*gamma + rewards_v
             
             loss_t = nn.HuberLoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
-            
+
             optimizer.zero_grad()
             loss_t.backward()
             optimizer.step()
         
         if (frame + 1) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
+            loss_history.append(loss_t)
 
         if (frame) % (max_frames / 10) == 0:
             if verbose:
@@ -501,13 +503,16 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             frame + 1, len(total_rewards), mean_reward, epsilon, time_passed))
          
     writer.close()
+    pkl_file = "dicts/" + env_name + "/" + env_name + "_loss_opt.pkl"
+    with open(pkl_file, 'wb+') as f:
+        pickle.dump(loss_history, f)
     pkl_file = "dicts/" + env_name + "/" + env_name + "_total_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
     pkl_file = "dicts/" + env_name + "/" + env_name + "_val_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(val_rewards, f)
-    return total_rewards, val_rewards
+    return total_rewards, val_rewards, loss_history
 
 
 if __name__ == '__main__':
