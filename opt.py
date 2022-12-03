@@ -194,7 +194,7 @@ class OpticalFlowCV(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = env.observation_space.shape,
+            shape = (4,84,84),
             dtype = np.float32
         )
 
@@ -221,9 +221,8 @@ class OpticalFlowCV(gym.ObservationWrapper):
         mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
 
         flow = cv.cvtColor(mask, cv.COLOR_HSV2RGB)
-        obs[0] = flow
-        obs[1] = np.array(frames)[1]
-        assert np.array(obs).shape == (2, 84, 84, 3)
+        obs = np.concatenate((flow.reshape(3,84,84),gray.reshape(1,84,84)), axis=1)
+        assert np.array(obs).shape == (4,84,84)
         return obs
 
     def step(self, action):
@@ -244,10 +243,8 @@ class ScaledFloatFrame(gym.ObservationWrapper):
         )
 
     def observation(self, obs):
-        assert np.array(obs).shape == (2, 84, 84, 3)
-        obs = np.array(obs).astype(np.float32)
-        obs[1] = obs[1] / 255.0
-        obs = obs.reshape(6,84,84)
+        assert np.array(obs).shape == (4,84,84)
+        obs = np.array(obs).astype(np.float32) / 255.0
         return obs
 
     def step(self, action):
@@ -303,7 +300,7 @@ def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=Fals
     env = FrameStack(env)
     env = OpticalFlowCV(env)
     env = ScaledFloatFrame(env)
-    env = EpisodicLifeEnv(env)
+#    env = EpisodicLifeEnv(env)
     return env
 
 
@@ -470,7 +467,6 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             optimizer.zero_grad()
             loss_t.backward()
             optimizer.step()
-        
 
         if (frame) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
