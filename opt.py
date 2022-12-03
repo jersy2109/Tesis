@@ -470,7 +470,7 @@ def training(env_name, replay_memory_size=200_000, max_frames=50_000_000, gamma=
         if (frame) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
             if loss_t is not None:
-                loss_history.append(loss_t)
+                loss_history.append(loss_t.item())
 
         if (frame) % (max_frames / 10) == 0:
             if verbose:
