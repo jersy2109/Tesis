@@ -239,7 +239,7 @@ class ScaledFloatFrame(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (4,84,84),
+            shape = (6,84,84),
             dtype = np.float32
         )
 
