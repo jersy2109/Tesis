@@ -374,7 +374,7 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=200_000, max_frames=50_000_000, gamma=0.99, batch_size=16,  \
+def training(env_name, replay_memory_size=75, max_frames=50_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
@@ -397,8 +397,6 @@ def training(env_name, replay_memory_size=200_000, max_frames=50_000_000, gamma=
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
-    loss_history = []
-    loss_t = None
 
     best_mean_reward = None
     start_time = datetime.datetime.now()
@@ -449,8 +447,6 @@ def training(env_name, replay_memory_size=200_000, max_frames=50_000_000, gamma=
             
         if (frame) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
-            if loss_t is not None:
-                loss_history.append(loss_t.item())
 
         if (frame) % (max_frames / 10) == 0:
             if verbose:
@@ -464,13 +460,10 @@ def training(env_name, replay_memory_size=200_000, max_frames=50_000_000, gamma=
             frame, len(total_rewards), mean_reward, epsilon, time_passed))
          
     writer.close()
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_loss.pkl"
-    with open(pkl_file, 'wb+') as f:
-        pickle.dump(loss_history, f)
     pkl_file = "dicts/" + env_name + "/" + env_name + "_total.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    return total_rewards, loss_history
+    return total_rewards
 
 if __name__ == '__main__':
     import sys
