@@ -245,7 +245,8 @@ class ScaledFloatFrame(gym.ObservationWrapper):
 
     def observation(self, obs):
         assert np.array(obs).shape == (2, 84, 84, 3)
-        obs = np.array(obs).astype(np.float32) / 255.0
+        obs = np.array(obs).astype(np.float32)
+        obs[1] = obs[1] / 255.0
         obs = obs.reshape(6,84,84)
         return obs
 
