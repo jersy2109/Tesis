@@ -288,7 +288,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Environment
 
-def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=False):
+def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4):
     env = gym.make(env_id, render_mode=None)
     assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max)
@@ -297,13 +297,12 @@ def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=Fals
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    if sample == False:
-        env = ClipReward(env)
+    env = ClipReward(env)
     env = WarpFrame(env)
     env = FrameStack(env)
     env = OpticalFlowCV(env)
     env = ScaledFloatFrame(env)
-#    env = EpisodicLifeEnv(env)
+    env = EpisodicLifeEnv(env)
     return env
 
 
@@ -359,10 +358,9 @@ class ExperienceReplay:
 ### Agent
 
 class Agent:
-    def __init__(self, env, exp_buffer, val=False):
+    def __init__(self, env, exp_buffer):
         self.env = env
         self.exp_buffer = exp_buffer
-        self.val = val
         self._reset()
 
     def _reset(self):
@@ -384,9 +382,7 @@ class Agent:
         new_state, reward, done, _ = self.env.step(action)
         self.total_reward += reward
         
-        if self.val == False:
-            self.exp_buffer.append(self.state, action, reward, done, new_state)
-        
+        self.exp_buffer.append(self.state, action, reward, done, new_state)
         self.state = new_state
 
         if done:
@@ -398,7 +394,7 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0.99, batch_size=32,  \
+def training(env_name, replay_memory_size=100_000, max_frames=50_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
@@ -407,7 +403,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     path = "dictsOpt/" + env_name + "_opt"
     Path(path).mkdir(parents=True, exist_ok=True)
     
-    env = make_atari(env_name, max_episode_steps=5_000)
+    env = make_atari(env_name, max_episode_steps=1_000)
     buffer = ExperienceReplay(replay_memory_size)
     agent = Agent(env, buffer)
     set_seed(seed=seed, env=env)
@@ -480,7 +476,6 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-
             torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame)/(max_frames/10))) + ".dat")
 
     print("Training finished")
