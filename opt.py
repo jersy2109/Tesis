@@ -410,7 +410,6 @@ def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0
     
     net        = DQN(env.observation_space.shape, env.action_space.n).to(device)
     target_net = DQN(env.observation_space.shape, env.action_space.n).to(device)
-    writer = SummaryWriter(comment='-' + env_name + "_opt")
     
     epsilon = eps_start
     eps_decay = (eps_start - eps_min) / replay_memory_size
@@ -429,10 +428,6 @@ def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0
             mean_reward = np.mean(total_rewards[-100:])
             
             time_passed = datetime.datetime.now() - start_time
-            
-            #writer.add_scalar("epsilon", epsilon, frame)
-            writer.add_scalar("reward_100", mean_reward, frame)
-            writer.add_scalar("reward", reward, frame)
 
             if best_mean_reward is None or best_mean_reward < mean_reward:
                 torch.save(net.state_dict(), path + "/" + env_name + "_opt_best.dat")
@@ -478,7 +473,6 @@ def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, time_passed))
          
-    writer.close()
     pkl_file = "dictsOpt/" + env_name + "/" + env_name + "_total_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
