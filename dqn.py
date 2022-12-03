@@ -355,7 +355,7 @@ class Agent:
             action = self.env.action_space.sample()
         else:
             state_a = np.array([self.state], copy=False)
-            state_v = torch.tensor(state_a).to(device)
+            state_v = torch.tensor(state_a).to(device) ### Intentar poner aquí el Flujo Óptico y no en el ambiente
             q_vals_v = net(state_v)
             _, act_v = torch.max(q_vals_v, dim=1) # Devuelve el índice de la acción
             action = int(act_v.item())
@@ -374,7 +374,7 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
+def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
@@ -418,7 +418,7 @@ def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0
 
         epsilon = max(epsilon-eps_decay, eps_min)
 
-        if (frame) % net_update == 0:
+        if frame % net_update == 0:
             sardn = buffer.sample(batch_size)
             batch = Experience(*zip(*sardn))
             
@@ -440,10 +440,10 @@ def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0
             loss_t.backward()
             optimizer.step()
             
-        if (frame) % sync_target_frames == 0:
+        if frame % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
 
-        if (frame) % (max_frames / 10) == 0:
+        if frame % (max_frames / 10) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
