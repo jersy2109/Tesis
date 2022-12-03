@@ -423,6 +423,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
     total_rewards = []
     val_rewards = []
     loss_history = []
+    loss_t = None
 
     best_val_reward = None
     start_time = datetime.datetime.now()
@@ -489,7 +490,8 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
         
         if (frame + 1) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
-            loss_history.append(loss_t)
+            if loss_t is not None:
+                loss_history.append(loss_t)
 
         if (frame) % (max_frames / 10) == 0:
             if verbose:
