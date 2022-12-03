@@ -239,16 +239,14 @@ class ScaledFloatFrame(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (4,84,84),
+            shape = (6,84,84),
             dtype = np.float32
         )
 
     def observation(self, obs):
         assert np.array(obs).shape == (2, 84, 84, 3)
         obs = np.array(obs).astype(np.float32) / 255.0
-        flow = obs[0].reshape(3,84,84)
-        gray = cv.cvtColor(obs[1], cv.COLOR_RGB2GRAY)
-        obs = np.concatenate((flow, gray.reshape(1,84,84)), axis=0)
+        obs = obs.reshape(6,84,84)
         return obs
 
     def step(self, action):
