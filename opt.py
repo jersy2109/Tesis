@@ -239,15 +239,16 @@ class ScaledFloatFrame(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (6,84,84),
+            shape = (4,84,84),
             dtype = np.float32
         )
 
     def observation(self, obs):
         assert np.array(obs).shape == (2, 84, 84, 3)
-        obs = np.array(obs).astype(np.float32)
-        obs[1] = obs[1] / 255.0
-        obs = obs.reshape(6,84,84)
+        obs = np.array(obs).astype(np.float32) / 255.0
+        flow = obs[0].reshape(3,84,84)
+        gray = cv.cvtColor(obs[1], cv.COLOR_RGB2GRAY)
+        obs = np.concatenate((flow, gray.reshape(1,84,84)), axis=0)
         return obs
 
     def step(self, action):
@@ -466,7 +467,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
 
         epsilon = max(epsilon-eps_decay, eps_min)
 
-        if (frame+1) % net_update == 0:
+        if (frame) % net_update == 0:
             sardn = buffer.sample(batch_size)
             batch = Experience(*zip(*sardn))
             
@@ -488,7 +489,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             loss_t.backward()
             optimizer.step()
         
-        if (frame + 1) % sync_target_frames == 0:
+        if (frame) % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
             if loss_t is not None:
                 loss_history.append(loss_t)
@@ -505,13 +506,13 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
             frame + 1, len(total_rewards), mean_reward, epsilon, time_passed))
          
     writer.close()
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_loss_opt.pkl"
+    pkl_file = "dictsOpt/" + env_name + "/" + env_name + "_loss_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_total_opt.pkl"
+    pkl_file = "dictsOpt/" + env_name + "/" + env_name + "_total_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_val_opt.pkl"
+    pkl_file = "dictsOpt/" + env_name + "/" + env_name + "_val_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(val_rewards, f)
     return total_rewards, val_rewards, loss_history

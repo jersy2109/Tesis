@@ -446,7 +446,7 @@ def training(env_name, replay_memory_size=75_000, max_frames=50_000_000, gamma=0
 
         epsilon = max(epsilon-eps_decay, eps_min)
 
-        if (frame+1) % net_update == 0:
+        if (frame) % net_update == 0:
             sardn = buffer.sample(batch_size)
             batch = Experience(*zip(*sardn))
             
