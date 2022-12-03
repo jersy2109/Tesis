@@ -246,9 +246,7 @@ class ScaledFloatFrame(gym.ObservationWrapper):
     def observation(self, obs):
         assert np.array(obs).shape == (2, 84, 84, 3)
         obs = np.array(obs).astype(np.float32) / 255.0
-        flow = obs[0].reshape(3,84,84)
-        gray = cv.cvtColor(obs[1], cv.COLOR_RGB2GRAY)
-        obs = np.concatenate((flow, gray.reshape(1,84,84)), axis=0)
+        obs = obs.reshape(6,84,84)
         return obs
 
     def step(self, action):
