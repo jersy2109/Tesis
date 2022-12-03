@@ -473,7 +473,7 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, time_passed))
          
-    pkl_file = "dictsOpt/" + env_name + "/" + env_name + "_total_opt.pkl"
+    pkl_file = "dictsOpt/" + env_name + "_opt/" + env_name + "_total_opt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
     return total_rewards
