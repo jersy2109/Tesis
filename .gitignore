@@ -5,3 +5,5 @@ runs/
 ProyectoFinal_JersyEspinosa.ipynb
 dictsOpt/
 gifs/
+*.pkl
+video*
