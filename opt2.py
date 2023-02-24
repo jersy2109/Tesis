@@ -411,7 +411,7 @@ def episode_stopping(timer):
     if datetime.datetime.now()-timer > delta:
         return True
 
-def training(env_name, replay_memory_size=200_000, max_frames=50_000_000, gamma=0.99, batch_size=32,  \
+def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
@@ -509,4 +509,4 @@ def training(env_name, replay_memory_size=200_000, max_frames=50_000_000, gamma=
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=True)
+    training(env_name=sys.argv[1]+'NoFrameskip-v4', replay_memory_size=sys.argv[2],verbose=True)
