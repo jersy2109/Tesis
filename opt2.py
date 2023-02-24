@@ -276,7 +276,7 @@ def make_atari(env_id, frames=4, max_steps=1_000, noop_max=30, skip=4):
     return env
 
 
-# Red
+### Red
 
 class DQN(nn.Module):
     """
@@ -333,6 +333,7 @@ class ExperienceReplay:
 
 
 ### Agente
+
 class Agent:
     """
     El agente que se encarga de jugar.
@@ -393,23 +394,24 @@ class Agent:
         mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
 
         flow = cv.cvtColor(mask.astype('float32'), cv.COLOR_HSV2RGB)
-        color_obs = cv.cvtColor(obs[1], cv.COLOR_GRAY2RGB)
 
-        final = np.zeros((2,84,84,3))
-        final[0] = flow
-        final[1] = np.array(color_obs) / 255.0
+        final = np.zeros((4,84,84))
+        final[0:3] = flow.reshape(3,84,84)
+        final[3] = np.array(obs[1]) / 255.0
 
-        assert np.array(final).shape == (2, 84, 84, 3)
+        assert final.shape == (4,84,84)
 
-        final = final.reshape(6,84,84)
-        assert final.shape == (6,84,84)
-
-        return final
+        return final.astype("float32")
 
     
-### Training
+### Entrenamiento
 
-def training(env_name, replay_memory_size=50_000, max_frames=500_000, gamma=0.99, batch_size=32,  \
+def episode_stopping(timer):
+    delta = datetime.timedelta(seconds=3)
+    if datetime.datetime.now()-timer > delta:
+        return True
+
+def training(env_name, replay_memory_size=100_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
@@ -423,8 +425,8 @@ def training(env_name, replay_memory_size=50_000, max_frames=500_000, gamma=0.99
     agent = Agent(env, buffer)
     set_seed(seed=seed, env=env)
     
-    net        = DQN((6,84,84), env.action_space.n).to(device)
-    target_net = DQN((6,84,84), env.action_space.n).to(device)
+    net        = DQN((4,84,84), env.action_space.n).to(device)
+    target_net = DQN((4,84,84), env.action_space.n).to(device)
     
     epsilon = eps_start
     eps_decay = (eps_start - eps_min) / replay_memory_size
@@ -436,9 +438,11 @@ def training(env_name, replay_memory_size=50_000, max_frames=500_000, gamma=0.99
     best_mean_reward = None
     start_time = datetime.datetime.now()
 
-    for frame in tqdm(range(1, max_frames+1), desc=env_name):        
+    for frame in tqdm(range(1, max_frames+1), desc=env_name):
+        start_frame = datetime.datetime.now()
+
         reward = agent.play_step(net, epsilon, device)
-        
+
         if reward is not None:
             total_rewards.append(reward)
             mean_reward = np.mean(total_rewards[-100:])
@@ -486,6 +490,10 @@ def training(env_name, replay_memory_size=50_000, max_frames=500_000, gamma=0.99
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
 
             torch.save(net.state_dict(), path + "/" + env_name + "_" + str(int((frame)/(max_frames/10))) + ".dat")
+
+        if episode_stopping(start_frame):
+            print('Taking too long')
+            break
 
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
