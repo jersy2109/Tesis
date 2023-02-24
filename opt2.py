@@ -509,4 +509,4 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4', replay_memory_size=sys.argv[2],verbose=True)
+    training(env_name=sys.argv[1]+'NoFrameskip-v4', replay_memory_size=int(sys.argv[2]),verbose=True)
