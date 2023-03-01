@@ -338,13 +338,17 @@ class Agent:
     """
     El agente que se encarga de jugar.
     """
-    def __init__(self, env, exp_buffer):
+    def __init__(self, env, exp_buffer, opt=True):
         self.env = env
         self.exp_buffer = exp_buffer
+        self.opt = opt
         self._reset()
 
     def _reset(self):
-        self.state = self.optical_flow(self.env.reset())
+        if self.opt:
+            self.state = self.optical_flow(self.env.reset())
+        else:
+            self.state = self.env.reset()
         self.total_reward = 0.0
 
     def play_step(self, net, epsilon=0.0, device='cuda'):
@@ -360,7 +364,8 @@ class Agent:
             action = int(act_v.item())
 
         new_state, reward, done, _ = self.env.step(action)
-        new_state = self.optical_flow(new_state)
+        if self.opt:
+            new_state = self.optical_flow(new_state)
         self.total_reward += reward
 
         self.exp_buffer.append(self.state, action, reward, done, new_state)
@@ -417,8 +422,26 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     """
     Función de entrenamiento.
     """
-    path = "dicts/" + env_name 
+    parameters = "Environment: {} \
+                 \nReplay Memory Size: {} \
+                 \nMax Frames: {} \
+                 \nGamma: {} \
+                 \nBatch Size: {} \
+                 \nLearning Rate: {} \
+                 \nSync Target Frames: {} \
+                 \nNet Update: {} \
+                 \nReplay Start Size: {} \
+                 \nInitial Epsilon: {} \
+                 \nMinimum Epsilon: {} \
+                 \nRandom Seed: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,sync_target_frames,
+                                                 net_update,replay_start_size,eps_start,eps_min,seed)
+
+    path = "dictsOpt/" + env_name + "_opt"
     Path(path).mkdir(parents=True, exist_ok=True)
+
+    aux_file = path + "/" + env_name + "_parameters_opt.txt"
+    with open(aux_file, 'w+') as f:
+        f.write(parameters)
     
     env = make_atari(env_name, max_steps=1_000)
     buffer = ExperienceReplay(replay_memory_size)
@@ -450,7 +473,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             time_passed = datetime.datetime.now() - start_time
             
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
+                torch.save(net.state_dict(), path + "/" + env_name + "_opt_best.dat")
                 best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
@@ -488,8 +511,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-
-            torch.save(net.state_dict(), path + "/" + env_name + "_" + str(int((frame)/(max_frames/10))) + ".dat")
+            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame)/(max_frames/10))) + ".dat")
 
         if episode_stopping(start_frame):
             print('Taking too long')
@@ -499,11 +521,11 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, time_passed))
          
-    pkl_file = "dicts/" + env_name + "/" + env_name + " _total.pkl"
-    with open(pkl_file, 'wb+') as f:
+    aux_file = path + env_name + "_total_opt.pkl"
+    with open(aux_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_loss.pkl"
-    with open(pkl_file, 'wb+') as f:
+    aux_file = path + env_name + "_loss_opt.pkl"
+    with open(aux_file, 'wb+') as f:
         pickle.dump(loss_history, f)
     return total_rewards, loss_history
 
