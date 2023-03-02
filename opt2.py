@@ -204,11 +204,11 @@ class FrameStack(gym.Wrapper):
     def __init__(self, env, k=4):
         gym.Wrapper.__init__(self, env)
         self.k = k
-        self.frames = deque([], maxlen=2)
+        self.frames = deque([], maxlen=self.k)
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (2,84,84),
+            shape = (self.k,84,84),
             dtype = self.env.observation_space.dtype,
         )
     
@@ -390,8 +390,24 @@ class Agent:
         #gray = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
 
         flow = cv.calcOpticalFlowFarneback(first_frame, frame,
-                                        None, 
-                                        0.5, 5, 5, 5, 7, 1.5, 0)
+                                        flow = None, 
+                                        pyr_scale = 0.5, 
+                                        levels = 5, 
+                                        winsize= 5, 
+                                        iterations = 5, 
+                                        poly_n = 5, 
+                                        poly_sigma = 1.1, 
+                                        flags = 0)
+
+        #flow = cv.calcOpticalFlowFarneback(first_frame, frame,
+        #                                flow = None, 
+        #                                pyr_scale = 0.5, 
+        #                                levels = 5, 
+        #                                winsize = 5, 
+        #                                iterations = 5, 
+        #                                poly_n = 7, 
+        #                                poly_sigma = 1.5, 
+        #                                flags = 0)
 
         magnitude, angle = cv.cartToPolar(flow[..., 0], flow[..., 1])
 
@@ -415,39 +431,25 @@ def episode_stopping(timer):
     delta = datetime.timedelta(seconds=3)
     if datetime.datetime.now()-timer > delta:
         return True
+    
 
-def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
+def training(env_name, replay_memory_size=150_000, max_frames=1_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
-            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
+            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True, opt=True):
     """
     Función de entrenamiento.
     """
-    parameters = "Environment: {} \
-                 \nReplay Memory Size: {} \
-                 \nMax Frames: {} \
-                 \nGamma: {} \
-                 \nBatch Size: {} \
-                 \nLearning Rate: {} \
-                 \nSync Target Frames: {} \
-                 \nNet Update: {} \
-                 \nReplay Start Size: {} \
-                 \nInitial Epsilon: {} \
-                 \nMinimum Epsilon: {} \
-                 \nRandom Seed: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,sync_target_frames,
-                                                 net_update,replay_start_size,eps_start,eps_min,seed)
 
-    path = "dictsOpt/" + env_name + "_opt"
-    Path(path).mkdir(parents=True, exist_ok=True)
-
-    aux_file = path + "/" + env_name + "_parameters_opt.txt"
-    with open(aux_file, 'w+') as f:
-        f.write(parameters)
-    
-    env = make_atari(env_name, max_steps=1_000)
+    env = make_atari(env_name + "NoFrameskip-v4", max_steps=1_000, frames=4-opt*2)
     buffer = ExperienceReplay(replay_memory_size)
-    agent = Agent(env, buffer)
+    agent = Agent(env, buffer, opt)
     set_seed(seed=seed, env=env)
     
+    typeNet = opt*"OPT" + (not opt)*"DQN"
+    path = "dicts/" + env_name + "/" + typeNet
+    fileName = env_name + "_" + typeNet + "_" + str(int(replay_memory_size/1_000)) + "k"
+    Path(path + "/" + fileName).mkdir(parents=True, exist_ok=True)
+
     net        = DQN((4,84,84), env.action_space.n).to(device)
     target_net = DQN((4,84,84), env.action_space.n).to(device)
     
@@ -461,7 +463,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     best_mean_reward = None
     start_time = datetime.datetime.now()
 
-    for frame in tqdm(range(1, max_frames+1), desc=env_name):
+    for frame in tqdm(range(1, max_frames + 1), desc=env_name):
         start_frame = datetime.datetime.now()
 
         reward = agent.play_step(net, epsilon, device)
@@ -473,7 +475,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             time_passed = datetime.datetime.now() - start_time
             
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + env_name + "_opt_best.dat")
+                torch.save(net.state_dict(), path + "/" + fileName + "/" + fileName + "_best.dat")
                 best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
@@ -507,28 +509,54 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
         if frame % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
 
-        if frame % (max_frames / 10) == 0:
+        if frame % (max_frames // 25) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame)/(max_frames/10))) + ".dat")
+            torch.save(net.state_dict(), path + "/" + fileName + "/" + fileName + "_" + str(int((frame)/(max_frames//25))) + "k.dat")
 
         if episode_stopping(start_frame):
             print('Taking too long')
             break
-
+    
+    end_time = datetime.datetime.now() - start_time
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
-            frame, len(total_rewards), mean_reward, epsilon, time_passed))
+            frame, len(total_rewards), mean_reward, epsilon, end_time))
          
-    aux_file = path + env_name + "_total_opt.pkl"
+    aux_file = path + "/" + fileName + "/" + fileName + "_total_opt.pkl"
     with open(aux_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    aux_file = path + env_name + "_loss_opt.pkl"
+    aux_file = path + "/" + fileName + "/" + fileName + "_loss_opt.pkl"
     with open(aux_file, 'wb+') as f:
         pickle.dump(loss_history, f)
+
+    parameters = "Environment: {} \
+                \nOptical: {} \
+                \nReplay Memory Size: {} \
+                \nMax Frames: {} \
+                \nGamma: {} \
+                \nBatch Size: {} \
+                \nLearning Rate: {} \
+                \nSync Target Frames: {} \
+                \nNet Update: {} \
+                \nReplay Start Size: {} \
+                \nInitial Epsilon: {} \
+                \nMinimum Epsilon: {} \
+                \nRandom Seed: {} \
+                \nTraining TIme: {}".format(env_name,opt,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
+                                        sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,end_time)
+    
+    aux_file = path + "/" + fileName + "/" + fileName + "_parameters.txt"
+    with open(aux_file, 'w+') as f:
+        f.write(parameters)
+
     return total_rewards, loss_history
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4', replay_memory_size=int(sys.argv[2]),verbose=True)
+    for game in ["MsPacman", "Breakout", "Pong", "Atlantis","Qbert"]:
+        for size in [25_000, 50_000, 60_000, 75_000]:
+            training(env_name=game, replay_memory_size=size, verbose=False, opt=True)
+            training(env_name=game, replay_memory_size=size, verbose=False, opt=False)
+        
