@@ -555,7 +555,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=1_000_000, gamma=0
 
 if __name__ == '__main__':
     import sys
-    for game in ["MsPacman", "Breakout", "Pong", "Atlantis","Qbert"]:
+    for game in ["Pong", "Atlantis","Qbert"]:
         for size in [25_000, 50_000, 60_000, 75_000]:
             training(env_name=game, replay_memory_size=size, verbose=False, opt=True)
             training(env_name=game, replay_memory_size=size, verbose=False, opt=False)
