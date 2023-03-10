@@ -464,7 +464,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0
     best_mean_reward = None
     start_time = datetime.datetime.now()
 
-    for frame in tqdm(range(1, max_frames + 1), desc=env_name):
+    for frame in tqdm(range(1, max_frames + 1), desc=env_name+str(int(replay_memory_size/1_000))):
         start_frame = datetime.datetime.now()
 
         reward = agent.play_step(net, epsilon, device)
