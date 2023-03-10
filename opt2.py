@@ -395,8 +395,8 @@ class Agent:
                                         levels = 5, 
                                         winsize= 5, 
                                         iterations = 5, 
-                                        poly_n = 5, 
-                                        poly_sigma = 1.1, 
+                                        poly_n = 7, 
+                                        poly_sigma = 1.5, 
                                         flags = 0)
 
         #flow = cv.calcOpticalFlowFarneback(first_frame, frame,
@@ -414,7 +414,7 @@ class Agent:
         mask[..., 0] = angle * 180 / np.pi / 2
         mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
 
-        #flow = cv.cvtColor(mask.astype('float32'), cv.COLOR_HSV2RGB)
+        flow = cv.cvtColor(mask.astype('float32'), cv.COLOR_HSV2RGB)
 
         final = np.zeros((4,84,84))
         final[0:3] = mask.reshape(3,84,84)
@@ -433,7 +433,7 @@ def episode_stopping(timer):
         return True
     
 
-def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
+def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True, opt=True):
     """

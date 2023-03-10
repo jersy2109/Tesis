@@ -212,11 +212,11 @@ class FrameStack(gym.Wrapper):
     def __init__(self, env, k=4):
         gym.Wrapper.__init__(self, env)
         self.k = k
-        self.frames = deque([], maxlen=2)
+        self.frames = deque([], maxlen=self.k)
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (2,84,84),
+            shape = (self.k,84,84),
             dtype = self.env.observation_space.dtype,
         )
     
@@ -345,7 +345,7 @@ class ExperienceReplay:
 ### Optical Flow
 
 def optical_flow(obs):
-    assert np.array(obs).shape == (2, 84, 84)
+    assert np.array(obs).shape == (4, 84, 84)
 
     first_frame = np.array(obs)[0].astype('uint8')
 
@@ -406,7 +406,8 @@ def sample(env_name, model_folder, n_samples=100, verbose=True):
 
                 state, reward, done, _ = env.step(action)
                 total_reward += reward
-
+                if reward > 0:
+                    print(reward)
                 if done:
                     break
             
@@ -420,4 +421,4 @@ def sample(env_name, model_folder, n_samples=100, verbose=True):
 
 
 if __name__ == '__main__':
-    sample(env_name=sys.argv[1], model_folder=sys.argv[2], n_samples=10)
+    sample(env_name=sys.argv[1], model_folder=sys.argv[2], n_samples=20)
