@@ -376,6 +376,31 @@ class Agent:
             self._reset()
         
         return done_reward
+    
+    def sample(self, net, directory, file, n_samples=100, verbose=True):
+        '''
+        Obtiene 'n_samples' número de muestras utilizando la red entrenada.
+        '''
+
+        total_reward = []
+
+        for i in range(n_samples):
+
+            self._reset()
+
+            while True:
+                reward = self.play_step(net)
+                if reward is not None:
+                    total_reward.append(reward)
+                    break
+            
+        if verbose:
+            print('Game: {}, Average Reward: {}'.format(self.env.unwrapped.spec.id[:-14], np.mean(total_reward)))
+
+        aux_file = directory + "/" + file + "_sampleRewards.txt"
+        with open(aux_file, 'a+') as f:
+            f.write(str(total_reward) + "\n")
+
 
     def optical_flow(self, obs):
         assert np.array(obs).shape == (4, 84, 84)
@@ -399,16 +424,6 @@ class Agent:
                                         poly_sigma = 1.5, 
                                         flags = 0)
 
-        #flow = cv.calcOpticalFlowFarneback(first_frame, frame,
-        #                                flow = None, 
-        #                                pyr_scale = 0.5, 
-        #                                levels = 5, 
-        #                                winsize = 5, 
-        #                                iterations = 5, 
-        #                                poly_n = 7, 
-        #                                poly_sigma = 1.5, 
-        #                                flags = 0)
-
         magnitude, angle = cv.cartToPolar(flow[..., 0], flow[..., 1])
 
         mask[..., 0] = angle * 180 / np.pi / 2
@@ -423,8 +438,8 @@ class Agent:
         assert final.shape == (4,84,84)
 
         return final.astype("float32")
-
     
+
 ### Entrenamiento
 
 def episode_stopping(timer):
@@ -448,7 +463,8 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
     typeNet = opt*"OPT" + (not opt)*"DQN"
     path = "dicts/" + env_name + "/"
     fileName = env_name + "_" + typeNet + "_" + str(int(replay_memory_size/1_000)) + "k"
-    Path(path + "/" + fileName).mkdir(parents=True, exist_ok=True)
+    folder = path + "/" + fileName 
+    Path(folder).mkdir(parents=True, exist_ok=True)
 
     net        = DQN((4,84,84), env.action_space.n).to(device)
     target_net = DQN((4,84,84), env.action_space.n).to(device)
@@ -464,8 +480,7 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
     best_mean_reward = None
     start_time = datetime.datetime.now()
 
-    for frame in tqdm(range(1, max_frames + 1), desc=env_name + "_" + typeNet + "_" + str(int(replay_memory_size/1_000))):
-        start_frame = datetime.datetime.now()
+    for frame in tqdm(range(1, max_frames + 1), desc=fileName):
 
         reward = agent.play_step(net, epsilon, device)
 
@@ -478,10 +493,14 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
             if best_mean_reward is None or best_mean_reward < mean_reward:
                 torch.save(net.state_dict(), path + "/" + fileName + "/" + fileName + "_best.dat")
                 best_mean_reward = mean_reward
+            
+            if len(total_rewards) % 100 == 0:
+                agent.sample(net, folder, fileName, n_samples=100, verbose=False)
 
         if len(buffer) < replay_start_size:
             continue
-
+        
+        start_frame = datetime.datetime.now()
         epsilon = max(epsilon-eps_decay, eps_min)
 
         if frame % net_update == 0:
@@ -558,8 +577,8 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
 
 if __name__ == '__main__':
     import sys
-    for game in ["Pong", "MsPacman"]:
-        for size in [50_000, 60_000, 70_000, 80_000]:
+    for game in ["SpaceInvaders", "Pong", "MsPacman"]:
+        for size in [50_000, 70_000, 100_000]:
             training(env_name=game, replay_memory_size=size, verbose=False, opt=True)
             training(env_name=game, replay_memory_size=size, verbose=False, opt=False)
         
