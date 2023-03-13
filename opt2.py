@@ -578,7 +578,7 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
 if __name__ == '__main__':
     import sys
     for game in ["SpaceInvaders", "Pong", "MsPacman", "Breakout", "Atlantis"]:
-        for size in [50_000, 70_000, 100_000]:
+        for size in [50_000, 75_000, 100_000]:
             training(env_name=game, replay_memory_size=size, verbose=False, opt=True)
             #training(env_name=game, replay_memory_size=size, verbose=False, opt=False)
         
