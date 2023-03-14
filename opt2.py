@@ -376,31 +376,6 @@ class Agent:
             self._reset()
         
         return done_reward
-    
-    def sample(self, net, directory, file, n_samples=100, verbose=True):
-        '''
-        Obtiene 'n_samples' número de muestras utilizando la red entrenada.
-        '''
-
-        total_reward = []
-
-        for i in range(n_samples):
-
-            self._reset()
-
-            while True:
-                reward = self.play_step(net)
-                if reward is not None:
-                    total_reward.append(reward)
-                    break
-            
-        if verbose:
-            print('Game: {}, Average Reward: {}'.format(self.env.unwrapped.spec.id[:-14], np.mean(total_reward)))
-
-        aux_file = directory + "/" + file + "_sampleRewards.txt"
-        with open(aux_file, 'a+') as f:
-            f.write(str(total_reward) + "\n")
-
 
     def optical_flow(self, obs):
         assert np.array(obs).shape == (4, 84, 84)
@@ -454,7 +429,8 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
     """
     Función de entrenamiento.
     """
-
+    numberOfDicts = 25
+    
     env = make_atari(env_name + "NoFrameskip-v4")
     buffer = ExperienceReplay(replay_memory_size)
     agent = Agent(env, buffer, opt)
@@ -494,9 +470,6 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
                 torch.save(net.state_dict(), path + "/" + fileName + "/" + fileName + "_best.dat")
                 best_mean_reward = mean_reward
             
-            if len(total_rewards) % 100 == 0:
-                agent.sample(net, folder, fileName, n_samples=100, verbose=False)
-
         if len(buffer) < replay_start_size:
             continue
         
@@ -529,11 +502,11 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
         if frame % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
 
-        if frame % (max_frames // 25) == 0:
+        if frame % (max_frames // numberOfDicts) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-            torch.save(net.state_dict(), path + "/" + fileName + "/" + fileName + "_" + str(int((frame)/(max_frames//25))) + "k.dat")
+            torch.save(net.state_dict(), path + "/" + fileName + "/" + fileName + "_" + str(int((frame)/(max_frames//numberOfDicts))) + "k.dat")
 
         if episode_stopping(start_frame):
             print('Taking too long')
@@ -579,6 +552,8 @@ if __name__ == '__main__':
     import sys
     for game in ["SpaceInvaders", "Pong", "MsPacman", "Breakout", "Atlantis"]:
         for size in [50_000, 75_000, 100_000]:
+            if game == "SpaceInvaders" and not (size == 100_000):
+                continue
             training(env_name=game, replay_memory_size=size, verbose=False, opt=True)
             #training(env_name=game, replay_memory_size=size, verbose=False, opt=False)
         
