@@ -390,7 +390,7 @@ class Agent:
         test_env = make_atari(env_id=env.unwrapped.spec.id, sample=True)
         self.env = test_env
 
-        for i in tqdm(range(n_samples)):
+        for i in range(n_samples):
 
             self._reset()
 
