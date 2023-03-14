@@ -256,7 +256,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Ambiente
 
-def make_atari(env_id, frames=4, max_steps=1_000, noop_max=30, skip=4):
+def make_atari(env_id, frames=4, max_steps=1_000, noop_max=30, skip=4, sample=False):
     """
     Crea el ambiente con los parámetros especificados.
     """
@@ -268,11 +268,12 @@ def make_atari(env_id, frames=4, max_steps=1_000, noop_max=30, skip=4):
         env = TimeLimit(env, max_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = ClipReward(env)
+    if not sample:
+        env = ClipReward(env)
+        env = EpisodicLifeEnv(env)
     env = WarpFrame(env)
     env = ScaledFLoatFrame(env)
     env = FrameStack(env, frames)
-    env = EpisodicLifeEnv(env)
     return env
 
 
@@ -342,6 +343,7 @@ class Agent:
         self.env = env
         self.exp_buffer = exp_buffer
         self.opt = opt
+        self.sampling = False
         self._reset()
 
     def _reset(self):
@@ -368,7 +370,8 @@ class Agent:
             new_state = self.optical_flow(new_state)
         self.total_reward += reward
 
-        self.exp_buffer.append(self.state, action, reward, done, new_state)
+        if not self.sampling:
+            self.exp_buffer.append(self.state, action, reward, done, new_state)
         self.state = new_state
 
         if done:
@@ -376,6 +379,38 @@ class Agent:
             self._reset()
         
         return done_reward
+
+    def sample(self, net, directory, file, n_samples=100, verbose=True):
+        '''
+        Obtiene 'n_samples' número de muestras utilizando la red entrenada.
+        '''
+        total_reward = [0]*100
+        self.sampling = True
+        env = self.env 
+        test_env = make_atari(env_id=env.unwrapped.spec.id, sample=True)
+        self.env = test_env
+
+        for i in tqdm(range(n_samples)):
+
+            self._reset()
+
+            while True:
+                reward = self.play_step(net)
+                if reward is not None:
+                    total_reward.append(reward)
+                    break
+            
+        if verbose:
+            print('Game: {}, Average Reward: {}'.format(self.env.unwrapped.spec.id[:-14], np.mean(total_reward)))
+
+        aux_file = directory + "/" + file + "_sampleRewards.txt"
+        with open(aux_file, 'a+') as f:
+            f.write(str(total_reward) + "\n")
+
+        self.env.close()
+        test_env.close()
+        self.sampling = False
+        self.env = env
 
     def optical_flow(self, obs):
         assert np.array(obs).shape == (4, 84, 84)
@@ -430,7 +465,7 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
     Función de entrenamiento.
     """
     numberOfDicts = 25
-    
+
     env = make_atari(env_name + "NoFrameskip-v4")
     buffer = ExperienceReplay(replay_memory_size)
     agent = Agent(env, buffer, opt)
@@ -470,6 +505,9 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
                 torch.save(net.state_dict(), path + "/" + fileName + "/" + fileName + "_best.dat")
                 best_mean_reward = mean_reward
             
+            if len(total_rewards) % 100 == 0:
+                agent.sample(net, folder, fileName, n_samples=100, verbose=False)
+
         if len(buffer) < replay_start_size:
             continue
         
