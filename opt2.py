@@ -453,7 +453,7 @@ class Agent:
 ### Entrenamiento
 
 def episode_stopping(timer):
-    delta = datetime.timedelta(seconds=3)
+    delta = datetime.timedelta(seconds=5)
     if datetime.datetime.now()-timer > delta:
         return True
     
