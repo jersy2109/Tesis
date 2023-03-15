@@ -343,7 +343,6 @@ class Agent:
         self.env = env
         self.exp_buffer = exp_buffer
         self.opt = opt
-        self.sampling = False
         self._reset()
 
     def _reset(self):
@@ -370,8 +369,7 @@ class Agent:
             new_state = self.optical_flow(new_state)
         self.total_reward += reward
 
-        if not self.sampling:
-            self.exp_buffer.append(self.state, action, reward, done, new_state)
+        self.exp_buffer.append(self.state, action, reward, done, new_state)
         self.state = new_state
 
         if done:
@@ -384,11 +382,8 @@ class Agent:
         '''
         Obtiene 'n_samples' número de muestras utilizando la red entrenada.
         '''
-        total_reward = [0]*100
-        self.sampling = True
-        env = self.env 
-        test_env = make_atari(env_id=env.unwrapped.spec.id, sample=True)
-        self.env = test_env
+
+        total_reward = []
 
         for i in range(n_samples):
 
@@ -406,11 +401,6 @@ class Agent:
         aux_file = directory + "/" + file + "_sampleRewards.txt"
         with open(aux_file, 'a+') as f:
             f.write(str(total_reward) + "\n")
-
-        self.env.close()
-        test_env.close()
-        self.sampling = False
-        self.env = env
 
     def optical_flow(self, obs):
         assert np.array(obs).shape == (4, 84, 84)
