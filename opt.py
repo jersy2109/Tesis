@@ -389,20 +389,31 @@ class Agent:
             self._reset()
 
         return done_reward
-
+    
+    def calc_flow(self):
+        assert self.state.shape == (2, 84, 84, 3)
+        
 
 ### Training
 
-def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
+def episode_stopping(timer):
+    delta = datetime.timedelta(seconds=10)
+    if datetime.datetime.now()-timer > delta:
+        return True
+
+def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
     Función de entrenamiento.
     """
-    path = "dictsOpt/" + env_name + "_opt"
+    numberOfDicts = 25
+
+    filename = env_name + "_OldOpt_" +  str(int(replay_memory_size/1_000)) + "k"
+    path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
-    env = make_atari(env_name, max_episode_steps=1_000)
+    env = make_atari(env_name + "NoFrameskip-v4")
     buffer = ExperienceReplay(replay_memory_size)
     agent = Agent(env, buffer)
     set_seed(seed=seed, env=env)
@@ -416,11 +427,12 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     loss_history = []
+    tr_finished = True
 
     best_mean_reward = None
     start_time = datetime.datetime.now()
 
-    for frame in tqdm(range(1, max_frames+1), desc=env_name):        
+    for frame in tqdm(range(1, max_frames+1), desc=filename):        
         reward = agent.play_step(net, epsilon, device)
 
         if reward is not None:
@@ -436,6 +448,7 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
         if len(buffer) < replay_start_size:
             continue
 
+        start_frame = datetime.datetime.now()
         epsilon = max(epsilon-eps_decay, eps_min)
 
         if frame % net_update == 0:
@@ -464,25 +477,55 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
         if frame % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
 
-        if frame % (max_frames / 10) == 0:
+        if frame % (max_frames // numberOfDicts) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-            torch.save(net.state_dict(), path + "/" + env_name + "_opt_" + str(int((frame)/(max_frames/10))) + ".dat")
+            torch.save(net.state_dict(), path + "/" + env_name + "_OldOpt_" + str(int((frame)/(max_frames//numberOfDicts))) + "k.dat")
 
+        if episode_stopping(start_frame):
+            print("Taking too long")
+            tr_finished = False
+            break 
+
+    end_time = datetime.datetime.now() - start_frame
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
-            frame, len(total_rewards), mean_reward, epsilon, time_passed))
-         
-    pkl_file = "dictsOpt/" + env_name + "_opt/" + env_name + "_total_opt.pkl"
+            frame, len(total_rewards), mean_reward, epsilon, end_time))
+        
+    pkl_file = "dicts/" + filename + "/" + env_name + "_total_OldOpt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dictsOpt/" + env_name + "_opt/" + env_name + "_loss_opt.pkl"
+    pkl_file = "dicts/" + filename + "/" + env_name + "_loss_OldOpt.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
+
+    parameters = "Environment: {} \
+                \nOptical: True \
+                \nReplay Memory Size: {} \
+                \nMax Frames: {} \
+                \nGamma: {} \
+                \nBatch Size: {} \
+                \nLearning Rate: {} \
+                \nSync Target Frames: {} \
+                \nNet Update: {} \
+                \nReplay Start Size: {} \
+                \nInitial Epsilon: {} \
+                \nMinimum Epsilon: {} \
+                \nRandom Seed: {} \
+                \nFinished Training: {} \
+                \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
+                                        sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,tr_finished,end_time)
+    
+    aux_file = "dicts/" + filename + "/" + env_name + "OldOpt_parameters.txt"
+    with open(aux_file, 'w+') as f:
+        f.write(parameters)
+
     return total_rewards, loss_history
 
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=False)
+    for game in ["SpaceInvaders", "Pong", "MsPacman"]:
+        for size in [50_000, 75_000, 100_000]:
+            training(env_name="SpaceInvaders", replay_memory_size=size, verbose=False)
