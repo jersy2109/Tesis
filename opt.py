@@ -211,8 +211,14 @@ class OpticalFlowCV(gym.ObservationWrapper):
         gray = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
 
         flow = cv.calcOpticalFlowFarneback(prev_gray, gray,
-                                        None, 
-                                        0.5, 5, 5, 5, 7, 1.5, 0)
+                                        flow = None, 
+                                        pyr_scale = 0.5, 
+                                        levels = 5, 
+                                        winsize= 5, 
+                                        iterations = 5, 
+                                        poly_n = 7, 
+                                        poly_sigma = 1.5, 
+                                        flags = 0)
 
         magnitude, angle = cv.cartToPolar(flow[..., 0], flow[..., 1])
 
@@ -401,7 +407,7 @@ def episode_stopping(timer):
     if datetime.datetime.now()-timer > delta:
         return True
 
-def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
+def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
@@ -442,7 +448,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0
             time_passed = datetime.datetime.now() - start_time
 
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + env_name + "_opt_best.dat")
+                torch.save(net.state_dict(), path + "/" + filename + "_best.dat")
                 best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
@@ -481,7 +487,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
-            torch.save(net.state_dict(), path + "/" + env_name + "_OldOpt_" + str(int((frame)/(max_frames//numberOfDicts))) + "k.dat")
+            torch.save(net.state_dict(), path + "/" + filename + '_' + str(int((frame)/(max_frames//numberOfDicts))) + "k.dat")
 
         if episode_stopping(start_frame):
             print("Taking too long")
@@ -493,10 +499,10 @@ def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, end_time))
         
-    pkl_file = "dicts/" + filename + "/" + env_name + "_total_OldOpt.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_total.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + filename + "/" + env_name + "_loss_OldOpt.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_loss.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
 
@@ -517,7 +523,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0
                 \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
                                         sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,tr_finished,end_time)
     
-    aux_file = "dicts/" + filename + "/" + env_name + "OldOpt_parameters.txt"
+    aux_file = "dicts/" + filename + "/" + filename + "_parameters.txt"
     with open(aux_file, 'w+') as f:
         f.write(parameters)
 
@@ -525,7 +531,8 @@ def training(env_name, replay_memory_size=150_000, max_frames=5_000_000, gamma=0
 
 
 if __name__ == '__main__':
-    import sys
-    for game in ["SpaceInvaders", "Pong", "MsPacman"]:
-        for size in [50_000, 75_000, 100_000]:
-            training(env_name="SpaceInvaders", replay_memory_size=size, verbose=False)
+    #import sys
+    # "Breakout", "SpaceInvaders", "Atlantis"
+    for game in ["Pong", "MsPacman"]:
+        for size in [50_000, 75_000, 100_000, 150_000]:
+            training(env_name=game, replay_memory_size=size, verbose=False)
