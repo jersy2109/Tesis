@@ -395,10 +395,7 @@ class Agent:
             self._reset()
 
         return done_reward
-    
-    def calc_flow(self):
-        assert self.state.shape == (2, 84, 84, 3)
-        
+
 
 ### Training
 
@@ -494,7 +491,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             tr_finished = False
             break 
 
-    end_time = datetime.datetime.now() - start_frame
+    end_time = datetime.datetime.now() - start_time
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, end_time))
@@ -533,6 +530,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
 if __name__ == '__main__':
     #import sys
     # "Breakout", "SpaceInvaders", "Atlantis"
+    # MSPACMAN FALTAN 100 Y 150K
     for game in ["Pong", "MsPacman"]:
         for size in [50_000, 75_000, 100_000, 150_000]:
             training(env_name=game, replay_memory_size=size, verbose=False)
