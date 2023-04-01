@@ -392,7 +392,7 @@ def get_dats_files(game_name):
         pass
     return natsorted(dats50), natsorted(dats75)
  
-def sample_model(game, samples=30):
+def sample_model(game, samples=100):
     dats_array = get_dats_files(game)
     game_rewards = []
     for dats in dats_array:
