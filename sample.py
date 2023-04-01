@@ -384,11 +384,14 @@ def sample(game, model, model_name, n_samples=100, verbose=True):
 def get_dats_files(game_name):
     dats50 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_50k/') if 'dat' in x]
     dats75 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_75k/') if 'dat' in x]
-    dats100 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_100k/') if 'dat' in x]
-    dats150 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_150k/') if 'dat' in x]
-    return natsorted(dats50), natsorted(dats75), natsorted(dats100), natsorted(dats150)
-
-
+    try:
+        dats100 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_100k/') if 'dat' in x]
+        dats150 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_150k/') if 'dat' in x]
+        return natsorted(dats50), natsorted(dats75), natsorted(dats100), natsorted(dats150)
+    except:
+        pass
+    return natsorted(dats50), natsorted(dats75)
+ 
 def sample_model(game, samples=30):
     dats_array = get_dats_files(game)
     game_rewards = []
