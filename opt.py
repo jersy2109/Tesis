@@ -528,8 +528,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
 
 
 if __name__ == '__main__':
-    #import sys
-    # "SpaceInvaders", "Enduro"
-    for game in ["Breakout", "Atlantis"]:
-        for size in [50_000, 75_000, 100_000, 150_000]:
-            training(env_name=game, replay_memory_size=size, verbose=False)
+    import sys
+    # "SpaceInvaders", "Enduro", "Atlantis"
+    for size in [50_000, 75_000, 100_000, 150_000]:
+        training(env_name=sys.argv[1], replay_memory_size=size, verbose=False)
