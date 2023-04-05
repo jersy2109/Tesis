@@ -10,6 +10,7 @@ import random
 import pickle
 import os
 from natsort import natsorted
+import datetime
 
 import torch
 import torch.nn as nn
@@ -343,28 +344,32 @@ class DQN(nn.Module):
     
 # Evaluación
 
-def sample(game, model, model_name, n_samples=100, verbose=True):
+def sample(game, model, model_name, n_samples=30, verbose=True):
     '''
     Obtiene 'n_samples' muestras de la red entrenada.
     '''
     game = game + 'NoFrameskip-v4'
     model = 'dicts/' + model + '/' + model_name
-    env = make_atari(game, sample=True)
+    env = make_atari(game, sample=True, max_episode_steps=None, skip=6)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
-    
+    epsilon = 0.05 
+    max_time = datetime.timedelta(minutes=5)
+
     rewards = np.zeros(n_samples)
 
     for i in range(n_samples):
-    
+        game_timer = datetime.datetime.now()
         state = env.reset()
         total_reward = 0.0
         
-        while True:
-            
-            state_v = torch.tensor(np.array([state], copy=False))
-            q_vals = net(state_v).data.numpy()[0]
-            action = np.argmax(q_vals)
+        while (datetime.datetime.now() - game_timer) < max_time:
+            if np.random.random() < epsilon:
+                action = env.action_space.sample()
+            else:
+                state_v = torch.tensor(np.array([state], copy=False))
+                q_vals = net(state_v).data.numpy()[0]
+                action = np.argmax(q_vals)
 
             state, reward, done, _ = env.step(action)
             total_reward += reward
@@ -392,8 +397,11 @@ def get_dats_files(game_name):
         pass
     return natsorted(dats50), natsorted(dats75)
  
-def sample_model(game, samples=100):
-    dats_array = get_dats_files(game)
+def sample_model(game, samples=30, directory=None):
+    if directory:
+        dats_array = [natsorted([x for x in os.listdir(directory) if 'dat' in x])]
+    else:
+        dats_array = get_dats_files(game)
     game_rewards = []
     for dats in dats_array:
         model_rewards = []
@@ -402,6 +410,7 @@ def sample_model(game, samples=100):
             rw = sample(game=game, model=mod, model_name=model, n_samples=samples, verbose=False)
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
+
     pkl_file = "samples/" + game + "_sample_rewards.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)

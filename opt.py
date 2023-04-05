@@ -529,6 +529,10 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
 
 if __name__ == '__main__':
     import sys
-    # "SpaceInvaders", "Enduro", "Atlantis"
-    for size in [50_000, 75_000, 100_000, 150_000]:
-        training(env_name=sys.argv[1], replay_memory_size=size, verbose=False)
+    from sample import sample_model
+    GAME = sys.argv[1]
+    SIZE = int(sys.argv[2])
+    #for size in [200_000]:
+    path = "dicts/" + GAME + "_OldOpt_" +  str(int(SIZE/1_000)) + "k"
+    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=50_000_000)
+    sample_model(game=GAME, directory=path, samples=30)

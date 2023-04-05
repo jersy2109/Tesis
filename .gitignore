@@ -8,3 +8,4 @@ dictsOpt/
 gifs/
 *.pkl
 video*
+__pycache__
