@@ -1,3 +1,4 @@
+import os
 import gym
 import gym.spaces
 import numpy as np
@@ -9,6 +10,7 @@ import datetime
 import random
 import pickle
 from pathlib import Path
+from natsort import natsorted
 
 import torch
 import torch.nn as nn
@@ -293,7 +295,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Environment
 
-def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4):
+def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=False):
     env = gym.make(env_id, render_mode=None)
     assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max)
@@ -302,12 +304,13 @@ def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4):
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = ClipReward(env)
+    if sample == False:
+        env = ClipReward(env)
+        env = EpisodicLifeEnv(env)
     env = WarpFrame(env)
     env = FrameStack(env)
     env = OpticalFlowCV(env)
     env = ScaledFloatFrame(env)
-    env = EpisodicLifeEnv(env)
     return env
 
 
@@ -328,7 +331,7 @@ class DQN(nn.Module):
 
         conv_out_size = self._get_conv_out(input_shape)
         self.fc = nn.Sequential(
-            nn.Linear(conv_out_size, 512),
+            nn.Linear(conv_out_size, 512), ##############
             nn.ReLU(),
             nn.Linear(512, n_actions)
         )
@@ -412,7 +415,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     """
     numberOfDicts = 25
 
-    filename = env_name + "_OldOpt_" +  str(int(replay_memory_size/1_000)) + "k"
+    filename = env_name + "_Opt_" +  str(int(replay_memory_size/1_000)) + "k"
     path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
@@ -526,13 +529,76 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
 
     return total_rewards, loss_history
 
+# Evaluación
+
+def sample(game, model, model_name, n_samples=30, verbose=True):
+    '''
+    Obtiene 'n_samples' muestras de la red entrenada.
+    '''
+    game = game + 'NoFrameskip-v4'
+    model = 'dicts/' + model + '/' + model_name
+    env = make_atari(game, sample=True, max_episode_steps=5_000, skip=6)
+    net = DQN(env.observation_space.shape, env.action_space.n)
+    net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
+    epsilon = 0.05 
+    max_time = datetime.timedelta(minutes=5)
+
+    rewards = np.zeros(n_samples)
+
+    for i in range(n_samples):
+        game_timer = datetime.datetime.now()
+        state = env.reset()
+        total_reward = 0.0
+        
+        while (datetime.datetime.now() - game_timer) < max_time:
+            if np.random.random() < epsilon:
+                action = env.action_space.sample()
+            else:
+                state_v = torch.tensor(np.array([state], copy=False))
+                q_vals = net(state_v).data.numpy()[0]
+                action = np.argmax(q_vals)
+
+            state, reward, done, _ = env.step(action)
+            total_reward += reward
+
+            if done:
+                break
+        
+        if verbose:
+            print('Model: {}, Game: {}, Reward: {}'.format(model, i+1,total_reward))
+
+        rewards[i] = total_reward
+
+    return rewards
+
+def get_dats_files(path):
+    dats = [x for x in os.listdir(path) if 'dat' in x]
+    return natsorted(dats)
+ 
+def sample_model(game, samples=30, directory=None):
+    if directory:
+        dats_array = [natsorted([x for x in os.listdir(directory) if 'dat' in x])]
+    else:
+        dats_array = get_dats_files(path=directory)
+    game_rewards = []
+    for dats in dats_array:
+        model_rewards = []
+        mod = '_'.join(dats[0].split('_')[:-1])
+        for model in tqdm(dats, desc=mod):
+            rw = sample(game=game, model=mod, model_name=model, n_samples=samples, verbose=False)
+            model_rewards.append(rw)
+        game_rewards.append(model_rewards)
+
+    pkl_file = "samples/" + game + "_sample_rewards.pkl"
+    with open(pkl_file, 'wb+') as f:
+        pickle.dump(game_rewards, f)
+    return np.array(game_rewards, dtype=object)
+
 
 if __name__ == '__main__':
     import sys
-    from sample import sample_model
     GAME = sys.argv[1]
     SIZE = int(sys.argv[2])
-    #for size in [200_000]:
-    path = "dicts/" + GAME + "_OldOpt_" +  str(int(SIZE/1_000)) + "k"
-    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=50_000_000)
+    path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k"
+    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=25_000_000)
     sample_model(game=GAME, directory=path, samples=30)
