@@ -409,7 +409,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     """
     numberOfDicts = 25
 
-    filename = env_name + "_Opt_" +  str(int(replay_memory_size/1_000)) + "k"
+    filename = env_name + "_RaftOpt_" +  str(int(replay_memory_size/1_000)) + "k"
     path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
@@ -442,7 +442,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             time_passed = datetime.datetime.now() - start_time
 
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + filename + "_best.dat")
+                torch.save(net.state_dict(), path + "/" + filename + "_RaftBest.dat")
                 best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
@@ -493,10 +493,10 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, end_time))
         
-    pkl_file = "dicts/" + filename + "/" + filename + "_total.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_RaftTotal.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + filename + "/" + filename + "_loss.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_RaftLoss.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
 
@@ -517,7 +517,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
                 \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
                                         sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,tr_finished,end_time)
     
-    aux_file = "dicts/" + filename + "/" + filename + "_parameters.txt"
+    aux_file = "dicts/" + filename + "/" + filename + "_RaftParameters.txt"
     with open(aux_file, 'w+') as f:
         f.write(parameters)
 
@@ -583,7 +583,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + "_sample_rewards.pkl"
+    pkl_file = "samples/" + game + "_RafSample_rewards.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
@@ -593,6 +593,6 @@ if __name__ == '__main__':
     import sys
     GAME = sys.argv[1]
     SIZE = int(sys.argv[2])
-    path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k"
+    path = "dicts/" + GAME + "_RaftOpt_" +  str(int(SIZE/1_000)) + "k"
     training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=1_000_000)
     sample_model(game=GAME, directory=path, samples=30)
