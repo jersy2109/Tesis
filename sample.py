@@ -404,7 +404,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + "_RafSample_rewards.pkl"
+    pkl_file = "samples/" + game + "_RaftSample_rewards.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
