@@ -599,6 +599,7 @@ if __name__ == '__main__':
     import sys
     GAME = sys.argv[1]
     SIZE = int(sys.argv[2])
+    FRAMES = int(sys.argv[3])
     path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k"
-    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=25_000_000)
+    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
     sample_model(game=GAME, directory=path, samples=30)
