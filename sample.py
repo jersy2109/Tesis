@@ -412,4 +412,4 @@ def sample_model(game, samples=30, directory=None):
 
 if __name__ == '__main__':
     import sys
-    sample_model(game=sys.argv[1])
+    sample_model(game=sys.argv[1], directory=sys.argv[2])
