@@ -531,7 +531,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
     '''
     game = game + 'NoFrameskip-v4'
     model = 'dicts/' + model + '/' + model_name
-    env = make_atari(game, sample=True, max_episode_steps=5_000, skip=6)
+    env = make_atari(game, sample=True, skip=6)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
     epsilon = 0.05 

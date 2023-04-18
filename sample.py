@@ -350,7 +350,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
     '''
     game = game + 'NoFrameskip-v4'
     model = 'dicts/' + model + '/' + model_name
-    env = make_atari(game, sample=True, max_episode_steps=None, skip=6)
+    env = make_atari(game, sample=True, skip=6)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
     epsilon = 0.05 
@@ -382,26 +382,19 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
 
         rewards[i] = total_reward
 
-    #print("Model: {}, Mean Reward: {}, Max Reward: {}, Min Reward: {}".format(model_name, np.mean(rewards), max(rewards), min(rewards)))
     return rewards
 
 
-def get_dats_files(game_name):
-    dats50 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_50k/') if 'dat' in x]
-    dats75 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_75k/') if 'dat' in x]
-    try:
-        dats100 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_100k/') if 'dat' in x]
-        dats150 = [x for x in os.listdir('dicts/' + game_name + '_OldOpt_150k/') if 'dat' in x]
-        return natsorted(dats50), natsorted(dats75), natsorted(dats100), natsorted(dats150)
-    except:
-        pass
-    return natsorted(dats50), natsorted(dats75)
- 
+def get_dats_files(path):
+    dats = [x for x in os.listdir(path) if 'dat' in x]
+    return natsorted(dats)
+
+
 def sample_model(game, samples=30, directory=None):
     if directory:
         dats_array = [natsorted([x for x in os.listdir(directory) if 'dat' in x])]
     else:
-        dats_array = get_dats_files(game)
+        dats_array = get_dats_files(path=directory)
     game_rewards = []
     for dats in dats_array:
         model_rewards = []
@@ -411,7 +404,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + "_sample_rewards.pkl"
+    pkl_file = "samples/" + game + "_RafSample_rewards.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
