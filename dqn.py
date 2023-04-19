@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import gym
 import gym.spaces 
@@ -9,6 +10,7 @@ from tqdm import tqdm
 import datetime
 import random
 import pickle
+from natsort import natsorted
   
 import torch
 import torch.nn as nn
@@ -68,8 +70,8 @@ class MaxAndSkipEnv(gym.Wrapper):
         return max_frame, total_reward, done, info
     
     def reset(self):
-        obs = self.env.reset()
-        return obs
+        return self.env.reset()
+    
 
 class TimeLimit(gym.Wrapper):
     """
@@ -91,8 +93,8 @@ class TimeLimit(gym.Wrapper):
 
     def reset(self):
         self._elapsed_steps = 0
-        obs = self.env.reset()
-        return obs
+        return self.env.reset()
+    
         
 class FireResetEnv(gym.Wrapper):
     """
@@ -118,8 +120,8 @@ class FireResetEnv(gym.Wrapper):
         if self.lives > self.env.ale.lives():
             self.lives = self.env.ale.lives()
             action = 1
-        obs, reward, done, info = self.env.step(action)
-        return obs, reward, done, info
+        return self.env.step(action)
+
 
 class ClipReward(gym.RewardWrapper):
     def __init__(self, env, min_r=-1, max_r=1):
@@ -160,13 +162,10 @@ class WarpFrame(gym.ObservationWrapper):
         assert original_space.dtype == np.uint8 and len(original_space.shape) == 3
         
     def observation(self, obs):
-        frame = obs
-        frame = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
-        frame = cv.resize(
+        frame = cv.cvtColor(obs, cv.COLOR_RGB2GRAY)
+        return cv.resize(
             frame, (self._width, self._height), interpolation=cv.INTER_AREA
         )
-        obs = frame
-        return obs
     
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -175,6 +174,7 @@ class WarpFrame(gym.ObservationWrapper):
     def reset(self):
         obs = self.env.reset()
         return self.observation(obs)
+
 
 class ScaledFloatFrame(gym.ObservationWrapper):
     """
@@ -227,6 +227,7 @@ class FrameStack(gym.Wrapper):
         return self._get_obs(), reward, done, info
     
     def _get_obs(self):
+        assert len(self.frames) == self.k
         return self.frames
 
 class EpisodicLifeEnv(gym.Wrapper):
@@ -259,7 +260,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 ### Environment
 
-def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4):
+def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4, sample=False):
     """
     Crea el ambiente especificado, pasándolo por los Wrappers especificados.
     """
@@ -271,11 +272,12 @@ def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4):
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = ClipReward(env)
+    if sample == False:
+        env = ClipReward(env)
+        env = EpisodicLifeEnv(env)
     env = WarpFrame(env)
     env = ScaledFloatFrame(env)
     env = FrameStack(env, frames)
-    env = EpisodicLifeEnv(env)
     return env
 
 ### Network 
@@ -354,7 +356,7 @@ class Agent:
             action = self.env.action_space.sample()
         else:
             state_a = np.array([self.state], copy=False)
-            state_v = torch.tensor(state_a).to(device) ### Intentar poner aquí el Flujo Óptico y no en el ambiente
+            state_v = torch.tensor(state_a).to(device) 
             q_vals_v = net(state_v)
             _, act_v = torch.max(q_vals_v, dim=1) # Devuelve el índice de la acción
             action = int(act_v.item())
@@ -373,16 +375,24 @@ class Agent:
 
 ### Training
 
-def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.99, batch_size=32,  \
+def episode_stopping(timer):
+    delta = datetime.timedelta(seconds=10)
+    if datetime.datetime.now()-timer > delta:
+        return True
+
+def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
             eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
     Función de entrenamiento.
     """
-    path = "dicts/" + env_name 
+    numberOfDicts = 25
+
+    filename = env_name + "_DQN_" +  str(int(replay_memory_size/1_000)) + "k"
+    path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
-    env = make_atari(env_name, max_episode_steps=1_000)
+    env = make_atari(env_name + "NoFrameskip-v4")
     buffer = ExperienceReplay(replay_memory_size)
     agent = Agent(env, buffer)
     set_seed(seed=seed, env=env)
@@ -396,11 +406,12 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     loss_history = []
+    tr_finished = True
 
     best_mean_reward = None
     start_time = datetime.datetime.now()
 
-    for frame in tqdm(range(1, max_frames+1), desc=env_name):        
+    for frame in tqdm(range(1, max_frames+1), desc=filename):        
         reward = agent.play_step(net, epsilon, device)
         
         if reward is not None:
@@ -410,12 +421,13 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
             time_passed = datetime.datetime.now() - start_time
             
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + env_name + "_best.dat")
+                torch.save(net.state_dict(), path + "/" + env_name + "_DQNBest.dat")
                 best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
             continue
 
+        start_frame = datetime.datetime.now()
         epsilon = max(epsilon-eps_decay, eps_min)
 
         if frame % net_update == 0:
@@ -444,25 +456,123 @@ def training(env_name, replay_memory_size=50_000, max_frames=5_000_000, gamma=0.
         if frame % sync_target_frames == 0:
             target_net.load_state_dict(net.state_dict())
 
-        if frame % (max_frames / 10) == 0:
+        if frame % (max_frames // numberOfDicts) == 0:
             if verbose:
                 print("{}:  {} games, best result {:.3f}, mean reward {:.3f}, eps {:.2f}, time {}".format(
                     frame, len(total_rewards), max(total_rewards), mean_reward, epsilon, time_passed))
+            torch.save(net.state_dict(), path + "/" + filename + '_' + str(int((frame)/(max_frames//numberOfDicts))) + "k.dat")
 
-            torch.save(net.state_dict(), path + "/" + env_name + "_" + str(int((frame)/(max_frames/10))) + ".dat")
+        if episode_stopping(start_frame):
+            print("Taking too long")
+            tr_finished = False
+            break 
 
+    end_time = datetime.datetime.now() - start_time
     print("Training finished")
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
-            frame, len(total_rewards), mean_reward, epsilon, time_passed))
+            frame, len(total_rewards), mean_reward, epsilon, end_time))
          
-    pkl_file = "dicts/" + env_name + "/" + env_name + " _total.pkl"
+    pkl_file = "dicts/" + env_name + "/" + env_name + " _DQNTotal.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_loss.pkl"
+    pkl_file = "dicts/" + env_name + "/" + env_name + "_DQNLoss.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
+
+    parameters = "Environment: {} \
+                \nOptical: False \
+                \nReplay Memory Size: {} \
+                \nMax Frames: {} \
+                \nGamma: {} \
+                \nBatch Size: {} \
+                \nLearning Rate: {} \
+                \nSync Target Frames: {} \
+                \nNet Update: {} \
+                \nReplay Start Size: {} \
+                \nInitial Epsilon: {} \
+                \nMinimum Epsilon: {} \
+                \nRandom Seed: {} \
+                \nFinished Training: {} \
+                \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
+                                        sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,tr_finished,end_time)
+    
+    aux_file = "dicts/" + filename + "/" + filename + "_DQNParameters.txt"
+    with open(aux_file, 'w+') as f:
+        f.write(parameters)
+   
     return total_rewards, loss_history
+
+# Evaluación
+
+def sample(game, model, model_name, n_samples=30, verbose=True):
+    '''
+    Obtiene 'n_samples' muestras de la red entrenada.
+    '''
+    game = game + 'NoFrameskip-v4'
+    model = 'dicts/' + model + '/' + model_name
+    env = make_atari(game, sample=True, max_episode_steps=5_000, skip=6)
+    net = DQN(env.observation_space.shape, env.action_space.n)
+    net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
+    epsilon = 0.05 
+    max_time = datetime.timedelta(minutes=5)
+
+    rewards = np.zeros(n_samples)
+
+    for i in range(n_samples):
+        game_timer = datetime.datetime.now()
+        state = env.reset()
+        total_reward = 0.0
+        
+        while (datetime.datetime.now() - game_timer) < max_time:
+            if np.random.random() < epsilon:
+                action = env.action_space.sample()
+            else:
+                state_v = torch.tensor(np.array([state], copy=False))
+                q_vals = net(state_v).data.numpy()[0]
+                action = np.argmax(q_vals)
+
+            state, reward, done, _ = env.step(action)
+            total_reward += reward
+
+            if done:
+                break
+        
+        if verbose:
+            print('Model: {}, Game: {}, Reward: {}'.format(model, i+1,total_reward))
+
+        rewards[i] = total_reward
+
+    return rewards
+
+def get_dats_files(path):
+    dats = [x for x in os.listdir(path) if 'dat' in x]
+    return natsorted(dats)
+ 
+def sample_model(game, samples=30, directory=None):
+    if directory:
+        dats_array = [natsorted([x for x in os.listdir(directory) if 'dat' in x])]
+    else:
+        dats_array = get_dats_files(path=directory)
+    game_rewards = []
+    for dats in dats_array:
+        model_rewards = []
+        mod = '_'.join(dats[0].split('_')[:-1])
+        for model in tqdm(dats, desc=mod):
+            rw = sample(game=game, model=mod, model_name=model, n_samples=samples, verbose=False)
+            model_rewards.append(rw)
+        game_rewards.append(model_rewards)
+
+    pkl_file = "samples/" + game + "_DQNSample_rewards.pkl"
+    with open(pkl_file, 'wb+') as f:
+        pickle.dump(game_rewards, f)
+    return np.array(game_rewards, dtype=object)
+
 
 if __name__ == '__main__':
     import sys
-    training(env_name=sys.argv[1]+'NoFrameskip-v4', verbose=False)
+    GAME = sys.argv[1]
+    SIZE = int(sys.argv[2])
+    FRAMES = int(sys.argv[3])
+    path = "dicts/" + GAME + "_DQN_" +  str(int(SIZE/1_000)) + "k"
+    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
+    sample_model(game=GAME, directory=path, samples=30)

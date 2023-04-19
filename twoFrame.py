@@ -2,6 +2,7 @@ import os
 import gym
 import gym.spaces
 import numpy as np
+import cv2 as cv
 import matplotlib.pyplot as plt
 from collections import deque, namedtuple
 from tqdm import tqdm
@@ -10,16 +11,10 @@ import random
 import pickle
 from pathlib import Path
 from natsort import natsorted
-import cv2 as cv
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision.models.optical_flow import raft_large, Raft_Large_Weights, raft_small, Raft_Small_Weights
-import torchvision.transforms.functional as F
-from torchvision import transforms
-from torchvision.utils import flow_to_image
-
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -203,27 +198,14 @@ class OpticalFlowCV(gym.ObservationWrapper):
             shape = env.observation_space.shape,
             dtype = np.float32
         )
-        self.model = raft_small(weights=Raft_Small_Weights.DEFAULT, progress=False).to(device)
-        self.model = self.model.eval()
-        self.weights = Raft_Small_Weights.DEFAULT
-        self.transforms_imgs = transforms.ToPILImage()
-        self.transforms_w = self.weights.transforms()
-    
-    def preprocess(self, img1, img2):
-        img1 = F.resize(self.transforms_imgs(img1), size=[208,160])
-        img2 = F.resize(self.transforms_imgs(img2), size=[208,160])
-        return self.transforms_w(img1, img2)
 
     def observation(self, obs):
         assert np.array(obs).shape == (2, 84, 84, 3)
-        
-        img1, img2 = self.preprocess(obs[0], obs[1])
-        list_of_flows = self.model(torch.stack([img1]).to(device), torch.stack([img2]).to(device))
-        flow = flow_to_image(list_of_flows[-1])[0]
-        flow = F.resize(flow, size=[84,84])
 
-        obs[0] = np.array(flow.permute(1,2,0).to('cpu'))
-        #obs[1] = np.array(obs)[1]
+        flow = np.array(obs[1]-obs[0])
+        obs[0] = flow
+        #obs[1] = np.array(frames)[1]
+        
         assert np.array(obs).shape == (2, 84, 84, 3)
         return obs
 
@@ -303,7 +285,7 @@ def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=Fals
         env = EpisodicLifeEnv(env)
     env = WarpFrame(env)
     env = FrameStack(env)
-    env = OpticalFlowCV(env)
+    #env = OpticalFlowCV(env)
     env = ScaledFloatFrame(env)
     return env
 
@@ -409,7 +391,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     """
     numberOfDicts = 25
 
-    filename = env_name + "_RaftOpt_" +  str(int(replay_memory_size/1_000)) + "k"
+    filename = env_name + "_TwoOpt_" +  str(int(replay_memory_size/1_000)) + "k"
     path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
@@ -442,7 +424,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             time_passed = datetime.datetime.now() - start_time
 
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + filename + "_RaftBest.dat")
+                torch.save(net.state_dict(), path + "/" + filename + "_TwoBest.dat")
                 best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
@@ -493,10 +475,10 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, end_time))
         
-    pkl_file = "dicts/" + filename + "/" + filename + "_RaftTotal.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_TwoTotal.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + filename + "/" + filename + "_RaftLoss.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_TwoLoss.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
 
@@ -517,7 +499,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
                 \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
                                         sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,tr_finished,end_time)
     
-    aux_file = "dicts/" + filename + "/" + filename + "_RaftParameters.txt"
+    aux_file = "dicts/" + filename + "/" + filename + "_TwoParameters.txt"
     with open(aux_file, 'w+') as f:
         f.write(parameters)
 
@@ -531,7 +513,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
     '''
     game = game + 'NoFrameskip-v4'
     model = 'dicts/' + model + '/' + model_name
-    env = make_atari(game, sample=True, skip=6)
+    env = make_atari(game, sample=True, max_episode_steps=5_000, skip=6)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
     epsilon = 0.05 
@@ -583,7 +565,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + "_SmallRaftSample_rewards.pkl"
+    pkl_file = "samples/" + game + "_TwoSample_rewards.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
@@ -593,6 +575,7 @@ if __name__ == '__main__':
     import sys
     GAME = sys.argv[1]
     SIZE = int(sys.argv[2])
-    path = "dicts/" + GAME + "_RaftOpt_" +  str(int(SIZE/1_000)) + "k"
-    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=1_000_000)
+    FRAMES = int(sys.argv[3])
+    path = "dicts/" + GAME + "_TwoOpt_" +  str(int(SIZE/1_000)) + "k"
+    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
     sample_model(game=GAME, directory=path, samples=30)
