@@ -421,7 +421,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             time_passed = datetime.datetime.now() - start_time
             
             if best_mean_reward is None or best_mean_reward < mean_reward:
-                torch.save(net.state_dict(), path + "/" + env_name + "_DQNBest.dat")
+                torch.save(net.state_dict(), path + "/" + filename + "_Best.dat")
                 best_mean_reward = mean_reward
 
         if len(buffer) < replay_start_size:
@@ -472,10 +472,10 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     print("{}:  {} games, mean reward {:.3f}, eps {:.2f}, time {}".format(
             frame, len(total_rewards), mean_reward, epsilon, end_time))
          
-    pkl_file = "dicts/" + env_name + "/" + env_name + " _DQNTotal.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_Total.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(total_rewards, f)
-    pkl_file = "dicts/" + env_name + "/" + env_name + "_DQNLoss.pkl"
+    pkl_file = "dicts/" + filename + "/" + filename + "_Loss.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
 
@@ -496,7 +496,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
                 \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
                                         sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,tr_finished,end_time)
     
-    aux_file = "dicts/" + filename + "/" + filename + "_DQNParameters.txt"
+    aux_file = "dicts/" + filename + "/" + filename + "_Parameters.txt"
     with open(aux_file, 'w+') as f:
         f.write(parameters)
    
