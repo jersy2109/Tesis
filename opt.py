@@ -201,15 +201,15 @@ class OpticalFlowCV(gym.ObservationWrapper):
 
     def observation(self, obs):
         assert np.array(obs).shape == (2, 84, 84, 3)
-        frames = obs
+        #frames = obs
 
-        first_frame = np.array(frames)[0].astype('uint8')
+        first_frame = np.array(obs)[0].astype('uint8')
         prev_gray = cv.cvtColor(first_frame, cv.COLOR_RGB2GRAY)
 
         mask = np.zeros_like(first_frame)
         mask[..., 1] = 255
 
-        frame = np.array(frames)[1].astype('uint8')
+        frame = np.array(obs)[1].astype('uint8')
         gray = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
 
         flow = cv.calcOpticalFlowFarneback(prev_gray, gray,
@@ -229,7 +229,7 @@ class OpticalFlowCV(gym.ObservationWrapper):
 
         flow = cv.cvtColor(mask, cv.COLOR_HSV2RGB)
         obs[0] = flow
-        obs[1] = np.array(frames)[1]
+        #obs[1] = np.array(frames)[1]
         assert np.array(obs).shape == (2, 84, 84, 3)
         return obs
 
@@ -414,8 +414,9 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     Función de entrenamiento.
     """
     numberOfDicts = 25
-
-    filename = env_name + "_Opt_" +  str(int(replay_memory_size/1_000)) + "k"
+    exploration_frames = 500_000
+    
+    filename = env_name + "_Opt_" +  str(int(replay_memory_size/1_000)) + "k_" + str(int(max_frames/1_000_000)) + 'M'
     path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
@@ -428,7 +429,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     target_net = DQN(env.observation_space.shape, env.action_space.n).to(device)
     
     epsilon = eps_start
-    eps_decay = (eps_start - eps_min) / replay_memory_size
+    eps_decay = (eps_start - eps_min) / exploration_frames
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
