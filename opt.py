@@ -477,7 +477,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             next_state_values = next_state_values.detach()
             expected_state_action_values = next_state_values*gamma + rewards_v
             
-            loss_t = nn.HuberLoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
+            loss_t = nn.MSELoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
 
             loss_history.append(loss_t.item())
             optimizer.zero_grad()
