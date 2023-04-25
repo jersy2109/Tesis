@@ -538,7 +538,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
     '''
     game = game + 'NoFrameskip-v4'
     model = 'dicts/' + model + '/' + model_name
-    env = make_atari(game, sample=True, max_episode_steps=5_000, skip=6)
+    env = make_atari(game, sample=True, max_episode_steps=None, skip=6)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
     epsilon = 0.05 
@@ -546,7 +546,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
 
     rewards = np.zeros(n_samples)
 
-    for i in range(n_samples):
+    for i in tqdm(range(n_samples)):
         game_timer = datetime.datetime.now()
         state = env.reset()
         total_reward = 0.0
@@ -601,6 +601,6 @@ if __name__ == '__main__':
     GAME = sys.argv[1]
     SIZE = int(sys.argv[2])
     FRAMES = int(sys.argv[3])
-    path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k"
+    path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k_" + str(int(SIZE / 1_000_000)) + 'M' 
     training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
     sample_model(game=GAME, directory=path, samples=30)
