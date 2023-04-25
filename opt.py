@@ -601,6 +601,6 @@ if __name__ == '__main__':
     GAME = sys.argv[1]
     SIZE = int(sys.argv[2])
     FRAMES = int(sys.argv[3])
-    path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k_" + str(int(SIZE / 1_000_000)) + 'M' 
+    path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
     training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
     sample_model(game=GAME, directory=path, samples=30)
