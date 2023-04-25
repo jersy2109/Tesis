@@ -409,7 +409,7 @@ def episode_stopping(timer):
 
 def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
-            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
+            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True, exp=False):
     """
     Función de entrenamiento.
     """
@@ -429,7 +429,10 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     target_net = DQN(env.observation_space.shape, env.action_space.n).to(device)
     
     epsilon = eps_start
-    eps_decay = (eps_start - eps_min) / exploration_frames
+    if exp:
+        eps_decay = (eps_start - eps_min) / exploration_frames
+    else:
+        eps_decay = (eps_start - eps_min) / replay_memory_size
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
@@ -590,7 +593,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + "_sample_rewards.pkl"
+    pkl_file = "samples/" + game + "_sample_rewards_10M.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
@@ -602,5 +605,5 @@ if __name__ == '__main__':
     SIZE = int(sys.argv[2])
     FRAMES = int(sys.argv[3])
     path = "dicts/" + GAME + "_Opt_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
+    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=sys.argv[4])
     sample_model(game=GAME, directory=path, samples=30)
