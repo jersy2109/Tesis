@@ -298,8 +298,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=False):
     env = gym.make(env_id, render_mode=None)
     assert 'NoFrameskip' in env.spec.id
-    if sample == False:
-        env = NoopResetEnv(env, noop_max)
+    env = NoopResetEnv(env, noop_max)
     env = MaxAndSkipEnv(env, skip)
     if max_episode_steps is not None:
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
@@ -542,7 +541,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
     '''
     game = game + 'NoFrameskip-v4'
     model = 'dicts/' + model + '/' + model_name
-    env = make_atari(game, sample=True, max_episode_steps=None, skip=6)
+    env = make_atari(game, sample=True, max_episode_steps=None, skip=6, noop_max=1)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
     epsilon = 0.05 
