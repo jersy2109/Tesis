@@ -298,7 +298,8 @@ class EpisodicLifeEnv(gym.Wrapper):
 def make_atari(env_id, max_episode_steps=1_000, noop_max=30, skip=4, sample=False):
     env = gym.make(env_id, render_mode=None)
     assert 'NoFrameskip' in env.spec.id
-    env = NoopResetEnv(env, noop_max)
+    if sample == False:
+        env = NoopResetEnv(env, noop_max)
     env = MaxAndSkipEnv(env, skip)
     if max_episode_steps is not None:
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
