@@ -414,7 +414,6 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     Función de entrenamiento.
     """
     numberOfDicts = 25
-    exploration_frames = 500_000
     
     filename = env_name + "_Opt_" +  str(int(replay_memory_size/1_000)) + "k_" + str(int(max_frames/1_000_000)) + 'M'
     path = "dicts/" + filename
@@ -430,7 +429,8 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     
     epsilon = eps_start
     if exp:
-        eps_decay = (eps_start - eps_min) / exploration_frames
+        replay_memory_size = 500_000
+        eps_decay = (eps_start - eps_min) / replay_memory_size
     else:
         eps_decay = (eps_start - eps_min) / replay_memory_size
     
