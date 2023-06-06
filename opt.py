@@ -605,12 +605,12 @@ if __name__ == '__main__':
     SIZE = 50_000 #int(sys.argv[1])
     FRAMES = 1_000_000 #int(sys.argv[2])
     allGames = [f.split('NoFrameskip-v4')[0] for f in gym.envs.registry if 'NoFrameskip-v4' in f and '-ram' not in f]
-    doneGames = list(set([f.split('_')[0] for f in os.listdir('samples') if ".pkl" in f]))
+    doneGames = [f for f in allGames for q in os.listdir('samples') if (f + '_sample_rewards_1M') in q]
     gamesLeft = sorted(set(allGames) - set(doneGames))
     start = int(sys.argv[1])
     end = int(sys.argv[2])
     print(gamesLeft[start:end])
     for game in gamesLeft[start:end]:
         path = "dicts/" + game + "_Opt_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=False)
-        #sample_model(game=game, directory=path, samples=30)
+    #    training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=False)
+        sample_model(game=game, directory=path, samples=30)
