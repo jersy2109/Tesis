@@ -570,9 +570,12 @@ def sample_model(game, samples=30, directory=None):
 
 if __name__ == '__main__':
     import sys
-    GAME = sys.argv[1]
+    #GAME = sys.argv[1]
     SIZE = 50_000
     FRAMES = 1_000_000
-    path = "dicts/" + GAME + "_DQN_" +  str(int(SIZE/1_000)) + "k"
-    training(env_name=GAME, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
-    sample_model(game=GAME, directory=path, samples=30)
+    doneGames = [f.split('_')[0] for f in os.listdir('samples') if "_sample_rewards_1M" in f]
+    print(doneGames)
+    for game in doneGames:
+        path = "dicts/" + game + "_DQN_" +  str(int(SIZE/1_000)) + "k"
+        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
+        sample_model(game=game, directory=path, samples=30)
