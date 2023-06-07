@@ -573,7 +573,7 @@ if __name__ == '__main__':
     #GAME = sys.argv[1]
     SIZE = 50_000
     FRAMES = 1_000_000
-    doneGames = [f.split('_')[0] for f in os.listdir('samples') if "_sample_rewards_1M" in f]
+    doneGames = sorted([f.split('_')[0] for f in os.listdir('samples') if "_sample_rewards_1M" in f])
     start = int(sys.argv[1])
     end = int(sys.argv[2])
     print(doneGames[start:end])
