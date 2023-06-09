@@ -428,15 +428,12 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     target_net = DQN(env.observation_space.shape, env.action_space.n).to(device)
     
     epsilon = eps_start
-    if exp:
-        replay_memory_size = 500_000
-        eps_decay = (eps_start - eps_min) / replay_memory_size
-    else:
-        eps_decay = (eps_start - eps_min) / replay_memory_size
+    eps_decay = (eps_start - eps_min) / replay_memory_size
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     loss_history = []
+    action_values = []
     tr_finished = True
 
     best_mean_reward = None
@@ -479,6 +476,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             
             loss_t = nn.MSELoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
 
+            action_values.append(np.mean(state_action_values))
             loss_history.append(loss_t.item())
             optimizer.zero_grad()
             loss_t.backward()
@@ -509,6 +507,9 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     pkl_file = "dicts/" + filename + "/" + filename + "_loss.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
+    pkl_file = "dicts/" + filename + "/" + filename + "_actvalues.pkl"
+    with open(pkl_file, 'wb+') as f:
+        pickle.dump(action_values, f)
 
     parameters = "Environment: {} \
                 \nOptical: True \
@@ -593,7 +594,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + "_sample_rewards_1M.pkl"
+    pkl_file = "samples/" + game + "_sample_rewards_1M_T.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
@@ -602,15 +603,10 @@ def sample_model(game, samples=30, directory=None):
 if __name__ == '__main__':
     import sys
     #GAME = sys.argv[1]
-    SIZE = 50_000 #int(sys.argv[1])
+    SIZE = 500_000 #int(sys.argv[1])
     FRAMES = 1_000_000 #int(sys.argv[2])
-    allGames = [f.split('NoFrameskip-v4')[0] for f in gym.envs.registry if 'NoFrameskip-v4' in f and '-ram' not in f]
-    doneGames = [f for f in allGames for q in os.listdir('samples') if (f + '_sample_rewards_1M') in q]
-    gamesLeft = sorted(set(allGames) - set(doneGames))
-    start = int(sys.argv[1])
-    end = int(sys.argv[2])
-    print(gamesLeft[start:end])
-    for game in gamesLeft[start:end]:
+    games = ['Breakout', 'Enduro', 'Riverraid', 'SpaceInvaders', 'Seaquest']
+    for game in games:
         path = "dicts/" + game + "_Opt_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-    #    training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=False)
+        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=False)
         sample_model(game=game, directory=path, samples=30)

@@ -406,6 +406,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
     loss_history = []
+    action_values = []
     tr_finished = True
 
     best_mean_reward = None
@@ -446,8 +447,9 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             next_state_values = next_state_values.detach()
             expected_state_action_values = next_state_values*gamma + rewards_v
             
-            loss_t = nn.HuberLoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
-            
+            loss_t = nn.MSELoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
+
+            action_values.append(np.mean(state_action_values))
             loss_history.append(loss_t.item())
             optimizer.zero_grad()
             loss_t.backward()
@@ -478,6 +480,9 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     pkl_file = "dicts/" + filename + "/" + filename + "_Loss.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(loss_history, f)
+    pkl_file = "dicts/" + filename + "/" + filename + "_ActValues.pkl"
+    with open(pkl_file, 'wb+') as f:
+        pickle.dump(action_values, f)
 
     parameters = "Environment: {} \
                 \nOptical: False \
