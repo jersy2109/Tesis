@@ -428,7 +428,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     target_net = DQN(env.observation_space.shape, env.action_space.n).to(device)
     
     epsilon = eps_start
-    eps_decay = (eps_start - eps_min) / replay_memory_size
+    eps_decay = (eps_start - eps_min) / 500_000
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
@@ -603,7 +603,7 @@ def sample_model(game, samples=30, directory=None):
 if __name__ == '__main__':
     import sys
     #GAME = sys.argv[1]
-    SIZE = 500_000 #int(sys.argv[1])
+    SIZE = 50_000 #int(sys.argv[1])
     FRAMES = 1_000_000 #int(sys.argv[2])
     games = ['Breakout', 'Enduro', 'Riverraid', 'SpaceInvaders', 'Seaquest']
     for game in games:
