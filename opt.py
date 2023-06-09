@@ -476,7 +476,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
             
             loss_t = nn.MSELoss()(state_action_values, expected_state_action_values) # MSELoss()(input,target)
 
-            action_values.append(np.mean(state_action_values))
+            action_values.append((torch.mean(state_action_values)).item())
             loss_history.append(loss_t.item())
             optimizer.zero_grad()
             loss_t.backward()
