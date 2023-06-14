@@ -409,7 +409,7 @@ def episode_stopping(timer):
 
 def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
-            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True, exp=False):
+            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
     """
     Función de entrenamiento.
     """
@@ -609,5 +609,5 @@ if __name__ == '__main__':
     print(len(games))
     for game in tqdm(games):
         path = "dicts/" + game + "_OptT_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=True)
+        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
         sample_model(game=game, directory=path, samples=30)
