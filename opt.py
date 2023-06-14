@@ -415,7 +415,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     """
     numberOfDicts = 25
     
-    filename = env_name + "_Opt_" +  str(int(replay_memory_size/1_000)) + "k_" + str(int(max_frames/1_000_000)) + 'M'
+    filename = env_name + "_OptT_" +  str(int(replay_memory_size/1_000)) + "k_" + str(int(max_frames/1_000_000)) + 'M'
     path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     

@@ -388,7 +388,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     """
     numberOfDicts = 25
 
-    filename = env_name + "_DQN_" +  str(int(replay_memory_size/1_000)) + "k"
+    filename = env_name + "_DQN2_" +  str(int(replay_memory_size/1_000)) + "k"
     path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
