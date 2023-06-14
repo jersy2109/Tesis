@@ -567,7 +567,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + "_DQNSample_rewards_1M_T.pkl"
+    pkl_file = "samples/" + game + "_DQNSample_rewards_1M_2.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
@@ -578,8 +578,9 @@ if __name__ == '__main__':
     #GAME = sys.argv[1]
     SIZE = 50_000
     FRAMES = 1_000_000
-    games = ['Breakout', 'Enduro', 'Riverraid', 'SpaceInvaders', 'Seaquest']
-    for game in games:
-        path = "dicts/" + game + "_DQN_" +  str(int(SIZE/1_000)) + "k"
+    games = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M.pkl")])
+    print(len(games))
+    for game in tqdm(games):
+        path = "dicts/" + game + "_DQN2_" +  str(int(SIZE/1_000)) + "k"
         training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
         sample_model(game=game, directory=path, samples=30)

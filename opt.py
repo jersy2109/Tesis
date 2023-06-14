@@ -605,8 +605,9 @@ if __name__ == '__main__':
     #GAME = sys.argv[1]
     SIZE = 50_000 #int(sys.argv[1])
     FRAMES = 1_000_000 #int(sys.argv[2])
-    games = ['Breakout', 'Enduro', 'Riverraid', 'SpaceInvaders', 'Seaquest']
-    for game in games:
-        path = "dicts/" + game + "_Opt_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=False)
+    games = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M.pkl")])
+    print(len(games))
+    for game in tqdm(games):
+        path = "dicts/" + game + "_OptT_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
+        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp=True)
         sample_model(game=game, directory=path, samples=30)
