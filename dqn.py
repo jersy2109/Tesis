@@ -578,11 +578,12 @@ if __name__ == '__main__':
     #GAME = sys.argv[1]
     SIZE = 50_000
     FRAMES = 1_000_000
-    games = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M.pkl")])
-    doneGames = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M_2.pkl")])
-    leftGames = games - doneGames
+    #games = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M.pkl")])
+    #doneGames = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M_2.pkl")])
+    #, 'Frostbite', 'Krull', 'Seaquest', 'YarsRevenge'
+    leftGames = ['Pong']
     print(len(leftGames))
     for game in tqdm(leftGames):
         path = "dicts/" + game + "_DQN2_" +  str(int(SIZE/1_000)) + "k"
-        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
+        #training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
         sample_model(game=game, directory=path, samples=30)
