@@ -594,7 +594,7 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + directory.split('_')[1] + '_T.pkl' #game + "_sample_rewards_1M_T.pkl"
+    pkl_file = "samples/" + game + '_OPT_sample_rewards_' + directory.split('_')[-1] + '_T.pkl' #game + "_sample_rewards_1M_T.pkl"
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
@@ -607,8 +607,11 @@ if __name__ == '__main__':
     FRAMES = 25_000_000 #int(sys.argv[2])
     #games = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M.pkl")])
     #doneGames = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("sample_rewards_1M_T.pkl")])
-    Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar']
+    Games = ['PrivateEye', 'Gravitar']
     for game in tqdm(Games):
         path = "dicts/" + game + "_OptT_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
         training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
+        sample_model(game=game, directory=path, samples=30)
+    for game in tqdm(['DoubleDunk', 'Bowling']):
+        path = "dicts/" + game + "_OptT_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
         sample_model(game=game, directory=path, samples=30)
