@@ -608,10 +608,11 @@ if __name__ == '__main__':
     #games = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M.pkl")])
     #doneGames = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("sample_rewards_1M_T.pkl")])
     Games = ['PrivateEye', 'Gravitar']
+    for game in tqdm(['DoubleDunk', 'Bowling']):
+        path = "dicts/" + game + "_OptT_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
+        sample_model(game=game, directory=path, samples=30)
     for game in tqdm(Games):
         path = "dicts/" + game + "_OptT_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
         training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
         sample_model(game=game, directory=path, samples=30)
-    for game in tqdm(['DoubleDunk', 'Bowling']):
-        path = "dicts/" + game + "_OptT_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-        sample_model(game=game, directory=path, samples=30)
+
