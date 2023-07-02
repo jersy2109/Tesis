@@ -602,9 +602,9 @@ def sample_model(game, samples=30, directory=None):
 if __name__ == '__main__':
     import sys
     #GAME = sys.argv[1]
-    SIZE = 10_000 #int(sys.argv[1])
-    EXP_FRAMES = 50_000
-    FRAMES = 100_000 #int(sys.argv[2])
+    SIZE = 50_000 #int(sys.argv[1])
+    EXP_FRAMES = 500_000
+    FRAMES = 5_000_000 #int(sys.argv[2])
     Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
     for game in tqdm(Games):
         path = "dicts/" + game + "_OptBW_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
