@@ -1,24 +1,23 @@
 import os
-from pathlib import Path
 import gym
-import gym.spaces 
-import numpy as np
-import cv2 as cv
-import matplotlib.pyplot as plt
-from collections import deque, namedtuple
-from tqdm import tqdm
-import datetime
 import random
 import pickle
+import datetime
+import cv2 as cv
+import gym.spaces
+import numpy as np
+from tqdm import tqdm
+from pathlib import Path
 from natsort import natsorted
-  
+from collections import deque, namedtuple
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def set_seed(seed, env):
+def set_seed(env, seed=2109):
     env.seed(seed)
     torch.manual_seed(seed)
     random.seed(seed)
@@ -272,7 +271,7 @@ def make_atari(env_id, frames=4, max_episode_steps=1_000, noop_max=30, skip=4, s
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    if sample == False:
+    if not sample:
         env = ClipReward(env)
         env = EpisodicLifeEnv(env)
     env = WarpFrame(env)
@@ -382,7 +381,7 @@ def episode_stopping(timer):
 
 def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
-            eps_start=1, eps_min=0.1, seed=2109, device='cuda', verbose=True):
+            eps_start=1, eps_min=0.1, exp_frames=50_000, seed=2109, device='cuda', verbose=True):
     """
     Función de entrenamiento.
     """
@@ -401,7 +400,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     target_net = DQN(env.observation_space.shape, env.action_space.n).to(device)
     
     epsilon = eps_start
-    eps_decay = (eps_start - eps_min) / 500_000
+    eps_decay = (eps_start - eps_min) / exp_frames
     
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     total_rewards = []
@@ -488,6 +487,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
                 \nOptical: False \
                 \nReplay Memory Size: {} \
                 \nMax Frames: {} \
+                \nExploration Frames: {} \
                 \nGamma: {} \
                 \nBatch Size: {} \
                 \nLearning Rate: {} \
@@ -498,7 +498,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
                 \nMinimum Epsilon: {} \
                 \nRandom Seed: {} \
                 \nFinished Training: {} \
-                \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,gamma,batch_size,learning_rate,
+                \nTraining Time: {}".format(env_name,replay_memory_size,max_frames,exp_frames,gamma,batch_size,learning_rate,
                                         sync_target_frames,net_update,replay_start_size,eps_start,eps_min,seed,tr_finished,end_time)
     
     aux_file = "dicts/" + filename + "/" + filename + "_Parameters.txt"
@@ -576,13 +576,11 @@ def sample_model(game, samples=30, directory=None):
 if __name__ == '__main__':
     import sys
     #GAME = sys.argv[1]
-    SIZE = 50_000
-    FRAMES = 25_000_000
-    #games = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M.pkl")])
-    #doneGames = set([f.split('_')[0] for f in os.listdir('samples') if f.endswith("DQNSample_rewards_1M_2.pkl")])
-    #, 'Frostbite', 'Krull', 'Seaquest', 'YarsRevenge'
-    Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar']
+    SIZE = 50_000 #int(sys.argv[1])
+    EXP_FRAMES = 500_000
+    FRAMES = 5_000_000 #int(sys.argv[2])
+    Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
     for game in tqdm(Games):
         path = "dicts/" + game + "_DQN_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M'
-        #training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES)
+        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
         sample_model(game=game, directory=path, samples=30)
