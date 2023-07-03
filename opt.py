@@ -164,7 +164,7 @@ class FrameStack(gym.Wrapper):
     def __init__(self, env, k=4):
         gym.Wrapper.__init__(self, env)
         self.k = k
-        self.frames = deque([], maxlen=k)
+        self.frames = deque([], maxlen=2)
         self.observation_space = gym.spaces.Box(
             low = 0,
             high = 255,
