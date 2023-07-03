@@ -387,7 +387,7 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
     """
     numberOfDicts = 25
 
-    filename = env_name + "_DQN_" +  str(int(replay_memory_size/1_000)) + "k_" + str(int(max_frames/1_000_000)) + 'M'
+    filename = env_name + "_DQN_" + str(int(exp_frames/1_000)) + 'kFrames_' + str(int(replay_memory_size/1_000)) + "k_" + str(int(max_frames/1_000_000)) + 'M'
     path = "dicts/" + filename
     Path(path).mkdir(parents=True, exist_ok=True)
     
@@ -567,7 +567,11 @@ def sample_model(game, samples=30, directory=None):
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
-    pkl_file = "samples/" + game + '_DQN_sample_rewards_' + directory.split('_')[-1] + '_T.pkl' #game + "_sample_rewards_1M_T.pkl"
+    if '500kFrames' in directory:
+        pkl_file = "samples/" + game + '_DQN_sample_rewards_' + directory.split('_')[-1] + '_T.pkl' #game + "_sample_rewards_1M_T.pkl"
+    else:
+        pkl_file = "samples/" + game + '_DQN_sample_rewards_' + directory.split('_')[-1] + '.pkl' #game + "_sample_rewards_1M_T.pkl"
+        
     with open(pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
@@ -577,10 +581,10 @@ if __name__ == '__main__':
     import sys
     #GAME = sys.argv[1]
     SIZE = 50_000 #int(sys.argv[1])
-    EXP_FRAMES = 500_000
+    EXP_FRAMES = int(sys.argv[1])
     FRAMES = 5_000_000 #int(sys.argv[2])
     Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
     for game in tqdm(Games):
-        path = "dicts/" + game + "_DQN_" +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M'
+        path = "dicts/" + game + "_DQN_" +  str(int(EXP_FRAMES/1_000)) + 'kFrames_' + str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M'
         training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
         sample_model(game=game, directory=path, samples=30)
