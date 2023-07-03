@@ -148,12 +148,12 @@ class WarpFrame(gym.ObservationWrapper):
         super().__init__(env)
         self._width = width
         self._height = height
-        num_colors = 1
+        num_channels = 1
         
         new_space = gym.spaces.Box(
             low = 0,
             high = 255,
-            shape = (self._height, self._width, num_colors),
+            shape = (self._height, self._width, num_channels),
             dtype = np.uint8,
         )
         original_space = self.observation_space
@@ -185,7 +185,7 @@ class ScaledFloatFrame(gym.ObservationWrapper):
             low = 0,
             high = 255,
             shape = self.env.observation_space.shape,
-            dtype = np.float32,
+            dtype = np.float32
         )
     
     def observation(self, observation):
@@ -523,7 +523,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
 
     rewards = np.zeros(n_samples)
 
-    for i in tqdm(range(n_samples)):
+    for i in range(n_samples):
         game_timer = datetime.datetime.now()
         state = env.reset()
         total_reward = 0.0

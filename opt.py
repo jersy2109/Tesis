@@ -161,7 +161,7 @@ class WarpFrame(gym.ObservationWrapper):
 
 
 class FrameStack(gym.Wrapper):
-    def __init__(self, env, k=2):
+    def __init__(self, env, k=4):
         gym.Wrapper.__init__(self, env)
         self.k = k
         self.frames = deque([], maxlen=k)
@@ -174,7 +174,9 @@ class FrameStack(gym.Wrapper):
         
     def reset(self):
         obs = self.env.reset()
-        for _ in range(self.k):
+        for i in range(self.k):
+            if i < (self.k - 2):
+                continue
             self.frames.append(obs)
         return self._get_obs()
 
@@ -184,7 +186,7 @@ class FrameStack(gym.Wrapper):
         return self._get_obs(), reward, done, info
 
     def _get_obs(self):
-        assert len(self.frames) == self.k
+        assert len(self.frames) == 2
         return self.frames
 
 
@@ -548,7 +550,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
 
     rewards = np.zeros(n_samples)
 
-    for i in tqdm(range(n_samples)):
+    for i in range(n_samples):
         game_timer = datetime.datetime.now()
         state = env.reset()
         total_reward = 0.0

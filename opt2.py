@@ -549,7 +549,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
 
     rewards = np.zeros(n_samples)
 
-    for i in tqdm(range(n_samples)):
+    for i in range(n_samples):
         game_timer = datetime.datetime.now()
         state = env.reset()
         total_reward = 0.0
