@@ -536,12 +536,12 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
 
 # Evaluación
 
-def sample(game, model, model_name, n_samples=30, verbose=True):
+def sample(game, modelDir, model_name, n_samples=30, verbose=True):
     '''
     Obtiene 'n_samples' muestras de la red entrenada.
     '''
     game = game + 'NoFrameskip-v4'
-    model = 'dicts/' + model + '/' + model_name
+    model = 'dicts/' + modelDir + '/' + model_name
     env = make_atari(game, sample=True, max_episode_steps=None, skip=6, noop_max=1)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
@@ -581,16 +581,13 @@ def get_dats_files(path):
     return natsorted(dats)
  
 def sample_model(game, samples=30, directory=None):
-    if directory:
-        dats_array = [natsorted([x for x in os.listdir(directory) if 'dat' in x])]
-    else:
-        dats_array = get_dats_files(path=directory)
+    dats_array = [natsorted([x for x in os.listdir(directory) if 'dat' in x])]
     game_rewards = []
     for dats in dats_array:
         model_rewards = []
         mod = '_'.join(dats[0].split('_')[:-1])
         for model in tqdm(dats, desc=mod):
-            rw = sample(game=game, model=mod, model_name=model, n_samples=samples, verbose=False)
+            rw = sample(game=game, modelDir=mod, model_name=model, n_samples=samples, verbose=False)
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
@@ -612,7 +609,7 @@ if __name__ == '__main__':
     Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
     for game in tqdm(Games):
         path = "dicts/" + game + "_OptT_" + str(int(EXP_FRAMES/1_000)) + 'kFrames_' +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-        if len([x for x in os.listdir(path) if 'dat' in x]) < 26:
-            training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
+        #if len([x for x in os.listdir(path) if 'dat' in x]) < 26:
+            #training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
         sample_model(game=game, directory=path, samples=30)
 
