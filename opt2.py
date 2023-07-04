@@ -407,14 +407,13 @@ def episode_stopping(timer):
 
 def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=0.99, batch_size=32,  \
             learning_rate=0.00025, sync_target_frames=10_000, net_update=4, replay_start_size=50_000, \
-            eps_start=1, eps_min=0.1, exp_frames=50_000, seed=2109, device='cuda', verbose=True):
+            eps_start=1, eps_min=0.1, exp_frames=50_000, seed=2109, device='cuda', verbose=True, path=None):
     """
     Función de entrenamiento.
     """
     numberOfDicts = 25
-    
-    filename = env_name + "_OptBW_" +  str(int(exp_frames/1_000)) + 'kFrames_' + str(int(replay_memory_size/1_000)) + "k_" + str(int(max_frames/1_000_000)) + 'M'
-    path = "dicts/" + filename
+
+    filename = ''.join(path.split('/')[1:])    
     Path(path).mkdir(parents=True, exist_ok=True)
     
     env = make_atari(env_name + "NoFrameskip-v4")
@@ -535,12 +534,12 @@ def training(env_name, replay_memory_size=150_000, max_frames=10_000_000, gamma=
 
 # Evaluación
 
-def sample(game, model, model_name, n_samples=30, verbose=True):
+def sample(game, modelDir, model_name, n_samples=30, verbose=True):
     '''
     Obtiene 'n_samples' muestras de la red entrenada.
     '''
     game = game + 'NoFrameskip-v4'
-    model = 'dicts/' + model + '/' + model_name
+    model = modelDir + '/' + model_name
     env = make_atari(game, sample=True, max_episode_steps=None, skip=6, noop_max=1)
     net = DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(model, map_location=lambda storage, loc: storage))
@@ -575,40 +574,41 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
 
     return rewards
 
-def get_dats_files(path):
-    dats = [x for x in os.listdir(path) if 'dat' in x]
-    return natsorted(dats)
  
-def sample_model(game, samples=30, directory=None):
+def sample_model(game, samples=30, directory=None, pkl_file=None):
     dats_array = natsorted([x for x in os.listdir(directory) if 'dat' in x])
     game_rewards = []
-    for dats in dats_array:
-        model_rewards = []
-        for model in tqdm(dats, desc=directory):
-            rw = sample(game=game, modelDir=directory, model_name=model, n_samples=samples, verbose=False)
-            model_rewards.append(rw)
-        game_rewards.append(model_rewards)
+    model_rewards = []
+    for model in tqdm(dats_array, desc=directory):
+        rw = sample(game=game, modelDir=directory, model_name=model, n_samples=samples, verbose=False)
+        model_rewards.append(rw)
+    game_rewards.append(model_rewards)
 
-    if '500kFrames' in directory:
-        pkl_file = "samples/" + game + '_OptBW_sample_rewards_' + directory.split('_')[-1] + '_T.pkl' #game + "_sample_rewards_1M_T.pkl"
-    else:
-        pkl_file = "samples/" + game + '_OptBW_sample_rewards_' + directory.split('_')[-1] + '.pkl' #game + "_sample_rewards_1M_T.pkl"
-    
-    with open(pkl_file, 'wb+') as f:
+    with open('samples/' + pkl_file, 'wb+') as f:
         pickle.dump(game_rewards, f)
     return np.array(game_rewards, dtype=object)
 
 
 if __name__ == '__main__':
     import sys
-    #GAME = sys.argv[1]
-    SIZE = 50_000 #int(sys.argv[1])
-    EXP_FRAMES = int(sys.argv[1])
-    FRAMES = 5_000_000 #int(sys.argv[2])
+    
+    SIZE = 50_000 
+    EXP_FRAMES = 50_000
+    FRAMES = 2_500_000 
+
     Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
+
     for game in tqdm(Games):
-        path = "dicts/" + game + "_OptBW_" + str(int(EXP_FRAMES/1_000)) + 'kFrames_' + str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-        if len([x for x in os.listdir(path) if 'dat' in x]) < 26:
-            training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
-        sample_model(game=game, directory=path, samples=30)
+    
+        path = "dicts/" + game + "_OptBW_" + str(int(EXP_FRAMES/1_000)) + 'kFrames_' +  str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
+    
+        if not os.path.exists(path) or len([x for x in os.listdir(path) if 'dat' in x]) < 26:
+            training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES, path=path)
+    
+        test_pkl = game + '_OptBW_sample_rewards_' + path.split('_')[-1] + '_T'*(EXP_FRAMES == 500_000) + '.pkl'
+        
+        if test_pkl not in os.listdir('samples'):
+            sample_model(game=game, directory=path, samples=30, pkl_file=test_pkl)
+
+
 
