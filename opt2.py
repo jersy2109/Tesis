@@ -612,6 +612,7 @@ if __name__ == '__main__':
     Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
     for game in tqdm(Games):
         path = "dicts/" + game + "_OptBW_" + str(int(EXP_FRAMES/1_000)) + 'kFrames_' + str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M' 
-        training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
+        if len([x for x in os.listdir(path) if 'dat' in x]) < 26:
+            training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
         sample_model(game=game, directory=path, samples=30)
 
