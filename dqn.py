@@ -523,7 +523,7 @@ def sample(game, model, model_name, n_samples=30, verbose=True):
 
     rewards = np.zeros(n_samples)
 
-    for i in range(n_samples):
+    for i in tqdm(range(n_samples)):
         game_timer = datetime.datetime.now()
         state = env.reset()
         total_reward = 0.0
@@ -586,6 +586,6 @@ if __name__ == '__main__':
     Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
     for game in tqdm(Games):
         path = "dicts/" + game + "_DQN_" +  str(int(EXP_FRAMES/1_000)) + 'kFrames_' + str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M'
-        if len([x for x in os.listdir(path) if 'dat' in x]) < 26:
+        if len([x for x in os.listdir(path) if 'dat' in x]) != 26:
             training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
         sample_model(game=game, directory=path, samples=30)
