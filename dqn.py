@@ -577,7 +577,7 @@ if __name__ == '__main__':
         path = "dicts/" + game + "_DQN_" +  str(int(EXP_FRAMES/1_000)) + 'kFrames_' + str(int(SIZE/1_000)) + "k_" + str(int(FRAMES/1_000_000)) + 'M'
     
         if not os.path.exists(path) or len([x for x in os.listdir(path) if 'dat' in x]) < 26:
-            training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES)
+            training(env_name=game, replay_memory_size=SIZE, verbose=False, max_frames=FRAMES, exp_frames=EXP_FRAMES, path=path)
     
         test_pkl = game + '_DQN_sample_rewards_' + path.split('_')[-1] + '_T'*(EXP_FRAMES == 500_000) + '.pkl'
 
