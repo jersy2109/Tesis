@@ -554,13 +554,12 @@ def get_dats_files(path):
     return natsorted(dats)
  
 def sample_model(game, samples=30, directory=None):
-    dats_array = [natsorted([x for x in os.listdir(directory) if 'dat' in x])]
+    dats_array = natsorted([x for x in os.listdir(directory) if 'dat' in x])
     game_rewards = []
     for dats in dats_array:
         model_rewards = []
-        mod = '_'.join(dats[0].split('_')[:-1])
-        for model in tqdm(dats, desc=mod):
-            rw = sample(game=game, modelDir=mod, model_name=model, n_samples=samples, verbose=False)
+        for model in tqdm(dats, desc=directory):
+            rw = sample(game=game, modelDir=directory, model_name=model, n_samples=samples, verbose=False)
             model_rewards.append(rw)
         game_rewards.append(model_rewards)
 
