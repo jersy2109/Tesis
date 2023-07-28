@@ -594,7 +594,7 @@ if __name__ == '__main__':
     
     SIZE = 50_000 
     EXP_FRAMES = 50_000
-    FRAMES = 2_500_000 
+    FRAMES = int(sys.argv[1]) 
 
     Games = ['DoubleDunk', 'Bowling', 'PrivateEye', 'Gravitar', 'Freeway', 'Atlantis', 'Seaquest', 'Pong', 'SpaceInvaders', 'Breakout']
 
