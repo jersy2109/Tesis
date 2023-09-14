@@ -619,7 +619,7 @@ if __name__ == '__main__':
 
     for game in tqdm(Games):
     
-        path = "dicts/{}_OptT_{}kFrames_{}k_{}M".format(
+        path = "dicts/{}_gpt_{}kFrames_{}k_{}M".format(
                     game, training_params['exp_frames'] // 1_000,
                     training_params['replay_memory_size'] // 1_000,
                     training_params['max_frames'] // 1_000_000
@@ -629,7 +629,7 @@ if __name__ == '__main__':
         if not os.path.exists(path) or len([x for x in os.listdir(path) if 'dat' in x]) < 26:
             training(env_name=game, **training_params)
     
-        test_pkl = '{}_OptT_sample_rewards_{}_T{}.pkl'.format(
+        test_pkl = '{}_gpt_sample_rewards_{}_T{}.pkl'.format(
             game, path.split('_')[-1],
             '_T' * (training_params['exp_frames'] == 500_000)
         )
